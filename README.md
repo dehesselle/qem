@@ -1,0 +1,49 @@
+# qem
+
+qem ("quick ephemeral mac") is a Python library and command-line tool for
+[NoMac](https://nomac.app) cloud Macs. It can start a Mac, run commands on it, open SSH
+sessions and sync a project folder. It does this without Node or npm, and it runs natively
+on Windows as well as on macOS and Linux.
+
+It covers the session part of NoMac's official `nomac` CLI: login, start/stop, exec/jobs,
+ssh, sync/pull, and the desktop in a VNC viewer. Every command is a thin layer over the
+library, so other Python programs can do the same things without the CLI.
+
+## Install and use
+
+Requirements are Python 3.12+ and OpenSSH.
+
+```sh
+uv tool install .  # from a checkout of this repository
+qem login          # approve the code in the browser
+qem start --max-duration 30m --max-cost 1
+qem sync .
+qem exec -- xcodebuild -version
+qem ssh
+qem stop
+```
+
+From Python:
+
+```python
+from qem import Nomac
+
+with Nomac() as nm, nm.start(max_duration=1800, max_cost=1) as mac:
+    print(mac.exec(["sw_vers"]).stdout)
+```
+
+A running Mac is billed per minute, so always pass `--max-cost` and `--max-duration`.
+
+## Documentation
+
+- [docs/MANUAL.md](docs/MANUAL.md): every command and option, the library API, credentials
+  and local files.
+- [docs/DESIGN.md](docs/DESIGN.md): architecture and core principles.
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): setup, tests and the offline tunnel check.
+- [docs/protocol.md](docs/protocol.md): the NoMac API and SSH tunnel as qem uses them,
+  where each fact comes from, and which parts are not yet verified against the live
+  service.
+
+## License
+
+[0BSD](LICENSE). qem is not affiliated with NoMac.
