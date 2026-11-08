@@ -14,7 +14,7 @@ library, so other Python programs can do the same things without the CLI.
 Requirements are Python 3.12+ and OpenSSH.
 
 ```sh
-uv tool install .  # from a checkout of this repository
+uv tool install qem
 qem login          # approve the code in the browser
 qem start --max-duration 30m --max-cost 1
 qem sync .
@@ -23,7 +23,7 @@ qem ssh
 qem stop
 ```
 
-From Python:
+From Python, after `pip install qem`:
 
 ```python
 from qem import Nomac

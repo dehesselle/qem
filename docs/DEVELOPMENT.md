@@ -1,6 +1,6 @@
 # Development
 
-This document covers setting up, testing and versioning qem.
+This document covers setting up, testing, versioning and releasing qem.
 
 ## Setup
 
@@ -50,6 +50,17 @@ uvx reuse lint                           # every file has copyright and license 
   on Windows), on a fake Windows layout.
 - `test_api.py` covers the device login, including RFC 8628's `slow_down` and the
   login's expiry.
+
+## CI and releases
+
+`.github/workflows/build.yml` runs on every push and pull request. It runs the format,
+lint and REUSE checks, the tests on Linux, Windows and macOS, and builds the sdist and
+wheel. It also installs the wheel and checks that `qem --version` runs.
+
+To release, push a `vX.Y.Z` tag. CI checks that the built version matches the tag,
+creates a draft GitHub release with the files from `dist/`, and publishes them to
+[PyPI](https://pypi.org/p/qem) through trusted publishing (the `pypi` environment). No
+token is stored. Publishing the draft release on GitHub is a manual step.
 
 ## Checking ssh without a NoMac account
 
