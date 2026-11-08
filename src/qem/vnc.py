@@ -2,31 +2,29 @@
 #
 # SPDX-License-Identifier: 0BSD
 
-"""The Mac's desktop over VNC.
+"""The Mac's desktop, in a pomona window.
 
 The Mac runs macOS Screen Sharing on 127.0.0.1:5900, which only ssh reaches.
-A local port forward through the session's tunnel makes it a VNC server on
-this computer. Screen Sharing signs in with the session's login (RFB security
-type 30, which TigerVNC calls DH). TigerVNC reads that login from
-VNC_USERNAME and VNC_PASSWORD, so it never lands on disk or in argv.
+A local port forward through the session's tunnel makes it reachable on this
+computer. pomona signs in there with the session's login (RFB security type
+30), keeps it in memory, and shows the screen in Apple's Adaptive quality.
 """
 
 from __future__ import annotations
 
-import os
-import shutil
 import socket
 import subprocess
 import sys
 import tempfile
 import time
 from collections.abc import Callable, Sequence
-from pathlib import Path
-from typing import Self
-from urllib.parse import quote
+from typing import TYPE_CHECKING, Self
 
-from .errors import TransferError
+from .errors import NomacError, TransferError
 from .models import Login
+
+if TYPE_CHECKING:
+    import pomona
 
 SCREEN_SHARING_PORT = 5900
 POLL_INTERVAL = 0.25  # how often open_tunnel checks whether the forward is up
@@ -60,36 +58,9 @@ def listening(port: int) -> bool:
         return False
 
 
-def find_viewer() -> str | None:
-    """TigerVNC's vncviewer on PATH, or where its Windows installer puts it."""
-    if found := shutil.which("vncviewer"):
-        return found
-    if sys.platform == "win32":
-        for root in (
-            os.environ.get("ProgramFiles"),
-            os.environ.get("ProgramFiles(x86)"),
-        ):
-            if root and (exe := Path(root) / "TigerVNC" / "vncviewer.exe").is_file():
-                return str(exe)
-    return None
-
-
 def address(port: int) -> str:
     """HOST::PORT, the form VNC viewers take for a full port number."""
     return f"127.0.0.1::{port}"
-
-
-def viewer_argv(viewer: str, port: int) -> list[str]:
-    return [viewer, address(port)]
-
-
-def viewer_env(login: Login) -> dict[str, str]:
-    return {"VNC_USERNAME": login.user, "VNC_PASSWORD": login.password}
-
-
-def vnc_url(login: Login, port: int) -> str:
-    """vnc://user:password@127.0.0.1:port, for macOS Screen Sharing (`open`)."""
-    return f"vnc://{quote(login.user, safe='')}:{quote(login.password, safe='')}@127.0.0.1:{port}"
 
 
 class DesktopTunnel:
@@ -180,3 +151,57 @@ def open_tunnel(
         errors.seek(0)
         detail = errors.read().decode(errors="replace").strip()
     raise TransferError(failure + (f": {detail}" if detail else ""))
+
+
+def show_desktop(
+    tunnel: DesktopTunnel,
+    login: Login,
+    *,
+    title: str | None = None,
+    reopen: Callable[[], DesktopTunnel] | None = None,
+) -> None:
+    """Show the Mac's desktop through `tunnel` in a pomona window, until it closes.
+
+    Requirements: sign in to 127.0.0.1:<tunnel.port> with `login`. When the
+    connection drops, pomona signs in again; if ssh has ended by then and
+    `reopen` is given, `reopen()` replaces the tunnel first. Tunnels opened
+    that way are closed before returning; `tunnel` stays the caller's. Raise
+    TransferError when the first sign-in fails or the session ended with an
+    error, and pass on pomona's RuntimeError when no window can be opened.
+    """
+    import pomona  # loads the Rust extension and cryptography; only the desktop needs them
+
+    current = tunnel
+    opened: list[DesktopTunnel] = []
+
+    def sign_in(picture: object = None) -> pomona.Session:
+        return pomona.connect(
+            "127.0.0.1",
+            current.port,
+            user=login.user,
+            password=login.password,
+            picture=picture,
+        )
+
+    def reconnect(picture: object) -> pomona.Session:
+        nonlocal current
+        if reopen is not None and not current.alive:
+            try:
+                current = reopen()
+            except NomacError as e:
+                # pomona tries again only after an OSError or a dropped connection.
+                raise OSError(str(e)) from e
+            opened.append(current)
+        return sign_in(picture)
+
+    try:
+        try:
+            session = sign_in()
+        except (OSError, pomona.PomonaError) as e:
+            raise TransferError(f"could not sign in to Screen Sharing: {e}") from e
+        session = pomona.run_window(session, title=title, reconnect=reconnect)
+    finally:
+        for t in opened:
+            t.close()
+    if session.error is not None:
+        raise TransferError(f"the desktop session ended: {session.error}")

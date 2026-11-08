@@ -39,7 +39,8 @@ uvx reuse lint                           # every file has copyright and license 
   Mac-side shell script is checked only against the live service.
 - `test_vnc.py` covers the desktop without a Mac. A small Python process that opens the
   port stands in for ssh, and the test checks that the tunnel waits for the port, reports
-  ssh's errors, and is closed afterwards.
+  ssh's errors, and is closed afterwards. A stand-in `pomona` module checks the sign-in
+  and that a reconnect reopens a tunnel whose ssh ended. No test opens a window.
 - `test_tunnel.py` starts a local WebSocket server and runs `python -m qem proxy`
   as a real subprocess. It checks that every byte value passes through unchanged, that
   the Bearer header reaches the server, and that a refused handshake ends with exit code
@@ -99,7 +100,7 @@ qem ssh -- uname -a
 qem sync . && qem sync . && qem exec -- ls   # the second sync sends 0 files
 qem pull ./tmp-pull --from README.md
 qem password --copy
-qem desktop                 # TigerVNC opens signed in; closing it ends the command
+qem desktop                 # pomona's window opens signed in; closing it ends the command
 qem stop
 ```
 

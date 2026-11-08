@@ -26,9 +26,13 @@ ProxyCommand, and that process carries the SSH bytes over a WebSocket to NoMac's
 (see [protocol.md](protocol.md)).
 
 The desktop uses that ssh as well. An ssh port forward makes the Mac's Screen Sharing,
-which listens only on the Mac's own 127.0.0.1:5900, a VNC server on this computer. It
-signs in with the session's login from `/password`. The nomac.app browser page is not
-used, because it needs the web login rather than the API key.
+which listens only on the Mac's own 127.0.0.1:5900, reachable on this computer.
+[pomona](https://pypi.org/project/pomona/), a dependency, signs in there with the
+session's login from `/password` and shows the screen in a window. It speaks Apple's
+Adaptive quality, which generic VNC viewers lack, so qem starts no external viewer.
+pomona is imported only when the window opens, so the other commands do not load its
+Rust extension. The nomac.app browser page is not used, because it needs the web login
+rather than the API key.
 
 Files move as tar streams over that ssh. Neither direction uses rsync.
 
@@ -85,7 +89,7 @@ changed parts of a file, which matters little for source code.
 6. **The access token and the Mac's password are never written to disk.** A parent that
    already called `/access` passes the token to the ProxyCommand through
    `QEM_TUNNEL_*` environment variables. On its own, `qem proxy` calls `/access` itself.
-   The password reaches a VNC viewer through `VNC_USERNAME`/`VNC_PASSWORD`. `Login` keeps
+   The password goes from memory to `pomona.connect`. `Login` keeps
    it out of its repr. The token goes only to the gateway that `/access` named, and only
    encrypted:
    - `tunnel_url` accepts only a bare `https` origin, with no login, path or query.

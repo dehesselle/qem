@@ -6,12 +6,14 @@ sessions and sync a project folder. It does this without Node or npm, and it run
 on Windows as well as on macOS and Linux.
 
 It covers the session part of NoMac's official `nomac` CLI: login, start/stop, exec/jobs,
-ssh, sync/pull, and the desktop in a VNC viewer. Every command is a thin layer over the
-library, so other Python programs can do the same things without the CLI.
+ssh, sync/pull, and the Mac's desktop in a window. Every command is a thin layer over
+the library, so other Python programs can do the same things without the CLI.
 
 ## Install and use
 
-Requirements are Python 3.12+ and OpenSSH.
+Requirements are Python 3.12+ and OpenSSH, on Windows x86_64, macOS on Apple silicon or
+Linux x86_64 (the platforms that [pomona](https://pypi.org/project/pomona/), the desktop
+viewer, has wheels for).
 
 ```sh
 uv tool install qem

@@ -100,30 +100,31 @@ qem ssh-config [NAME] [--yes]     # NAME defaults to nomac
 ### Desktop
 
 ```sh
-qem desktop [--port PORT] [--viewer PATH | --no-viewer]
+qem desktop [--port PORT] [--no-viewer]
 qem password [--copy]
 ```
 
-- `desktop` shows the Mac's macOS desktop in a VNC viewer on this computer. It needs no
-  browser and no sign-in at nomac.app.
+- `desktop` shows the Mac's macOS desktop in a window on this computer, drawn by
+  [pomona](https://pypi.org/project/pomona/). It needs no browser and no sign-in at
+  nomac.app.
 - **How it connects:** an ssh port forward reaches the Mac's own Screen Sharing (port
   5900 on the Mac) through the same tunnel as `ssh`. `--port` picks the local port;
   without it, a free one is used.
-- **The viewer:** by default it is TigerVNC's `vncviewer`, found on PATH or in
-  `Program Files\TigerVNC`. It starts already signed in, because qem passes the
-  session's login in `VNC_USERNAME` and `VNC_PASSWORD`. Closing the viewer ends the
-  tunnel.
-- `--viewer PATH` starts another viewer with `127.0.0.1::PORT`. It must support Apple's
-  sign-in (RFB security type 30, called DH in TigerVNC). TightVNC, for example, does not.
-  A viewer that ignores the two variables asks for the user (`agent`) and the password.
-- On macOS without TigerVNC, Apple's Screen Sharing opens instead.
-- `--no-viewer`, or no viewer found: prints `127.0.0.1::PORT` and holds the tunnel until
-  Ctrl-C.
+- **The window:** pomona signs in with the session's login, which never leaves memory,
+  and shows the screen in Apple's Adaptive quality. Keys, mouse and copied text go to
+  the Mac as pomona's manual describes. When the connection drops, the window stays
+  and signs in again, reopening the ssh forward if ssh ended. Closing the window ends
+  the tunnel.
+- When no window can be opened (no display or graphics adapter, or a Windows ssh login
+  without a desktop), `desktop` says so and exits 1.
+- `--no-viewer` prints `127.0.0.1::PORT` and holds the tunnel until Ctrl-C, for another
+  viewer. That viewer must support Apple's sign-in (RFB security type 30) and signs in
+  as `agent` with `qem password`.
 - `password` prints the Mac's login password for this session, and the user on stderr.
   `--copy` puts it on the clipboard instead (`clip`, `pbcopy`, `wl-copy`, `xclip` or
   `xsel`). The same password is in `$NOMAC_MAC_PASSWORD` on the Mac.
 - By hand, the same works with `qem ssh --forward 5901:5900` and
-  `vncviewer 127.0.0.1::5901`, signing in as `agent` with `qem password`.
+  `pomona 127.0.0.1:5901 -u agent`, with the password from `qem password`.
 - The Mac keeps billing while the desktop is open. Run `qem stop` when done.
 
 ### Files
@@ -230,8 +231,11 @@ finally:
   - Desktop: `password()` returns a `Login(user, password, variable)`.
     `desktop_tunnel(port=None)` returns a `DesktopTunnel(port, process)` once a viewer can
     connect to `127.0.0.1::port`. Close it, or use it as a context manager.
-    `qem.vnc` has `find_viewer`, `viewer_argv`, `viewer_env` and `vnc_url` to start a
-    viewer.
+    `qem.vnc.show_desktop(tunnel, login, title=None, reopen=None)` shows it in a pomona
+    window until the window closes. `reopen()` returns a new tunnel when ssh has ended
+    before a reconnect. It raises `TransferError` when the sign-in fails or the
+    session ends with an error, and pomona's `RuntimeError` when no window can be
+    opened. On macOS it must run on the main thread.
 - To run ssh yourself, merge `prepare_ssh()` into the environment of
   `subprocess.run(mac.ssh_argv(...))`. Then the ProxyCommand does not need an API key of
   its own.

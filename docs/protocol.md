@@ -102,7 +102,9 @@ NoMac publishes no OpenAPI spec: `/openapi.json` and `/api/v1/openapi.json` both
   `127.0.0.1:5900` on the Mac and opens `vnc://user:password@…` in Apple's Screen Sharing,
   with the login from `/password`.
 
-qem does the same with any VNC viewer. Observed on 2026-10-30:
+qem forwards the same port and shows it with pomona, which speaks Standard mode with
+Adaptive quality (security type 30). Observed on 2026-10-30, with TigerVNC as the
+viewer at the time:
 
 - Port 5900 on the Mac is macOS Screen Sharing. It answered `RFB 003.889` and offered
   security types 30, 33, 36 and 35. Type 2 (a plain VNC password) was not offered.

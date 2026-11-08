@@ -5,6 +5,7 @@
 import os
 import socket
 import sys
+import types
 
 import pytest
 
@@ -22,13 +23,91 @@ LISTEN = (
 )
 
 
-def test_viewer_command_and_login():
-    assert vnc.viewer_argv("vncviewer", 5901) == ["vncviewer", "127.0.0.1::5901"]
-    assert vnc.viewer_env(LOGIN) == {
-        "VNC_USERNAME": "agent",
-        "VNC_PASSWORD": "p@ss:w/rd",
-    }
-    assert vnc.vnc_url(LOGIN, 5901) == "vnc://agent:p%40ss%3Aw%2Frd@127.0.0.1:5901"
+class FakePomonaError(Exception):
+    pass
+
+
+class FakeTunnel:
+    def __init__(self, port, alive=True):
+        self.port, self.alive, self.closed = port, alive, False
+
+    def close(self):
+        self.closed = True
+
+
+@pytest.fixture
+def pomona(monkeypatch):
+    """A stand-in for the pomona package; `window` runs in place of run_window."""
+    fake = types.ModuleType("pomona")
+    fake.PomonaError = FakePomonaError
+    fake.connects = []
+    fake.window = lambda session, reconnect: session
+
+    def connect(host, port, **kw):
+        fake.connects.append((host, port, kw))
+        return types.SimpleNamespace(port=port, error=None)
+
+    def run_window(session, *, title, reconnect):
+        fake.title = title
+        return fake.window(session, reconnect)
+
+    fake.connect, fake.run_window = connect, run_window
+    monkeypatch.setitem(sys.modules, "pomona", fake)
+    return fake
+
+
+def test_show_desktop_signs_in_through_the_tunnel(pomona):
+    vnc.show_desktop(FakeTunnel(5901), LOGIN, title="NoMac ses_1")
+    assert pomona.connects == [
+        ("127.0.0.1", 5901, {"user": "agent", "password": "p@ss:w/rd", "picture": None})
+    ]
+    assert pomona.title == "NoMac ses_1"
+
+
+def test_show_desktop_reopens_a_dead_tunnel(pomona):
+    first, reopened = FakeTunnel(5901), []
+
+    def reopen():
+        reopened.append(FakeTunnel(5901))
+        return reopened[-1]
+
+    def window(session, reconnect):
+        assert reconnect("pic").port == 5901 and not reopened  # ssh still up
+        first.alive = False
+        return reconnect("pic")
+
+    pomona.window = window
+    session = vnc.show_desktop(first, LOGIN, reopen=reopen)
+    assert session is None  # returns nothing; the window's session stays inside
+    assert len(reopened) == 1 and reopened[0].closed and not first.closed
+    assert pomona.connects[-1][2]["picture"] == "pic"
+
+
+def test_show_desktop_retries_a_tunnel_that_cannot_reopen(pomona):
+    def reopen():
+        raise TransferError("ssh ended before the forward was up")
+
+    def window(session, reconnect):
+        with pytest.raises(OSError, match="ssh ended"):  # pomona retries an OSError
+            reconnect("pic")
+        return session
+
+    pomona.window = window
+    vnc.show_desktop(FakeTunnel(5901, alive=False), LOGIN, reopen=reopen)
+
+
+def test_show_desktop_reports_failures(pomona):
+    def refused(host, port, **kw):
+        raise FakePomonaError("the Mac refused the sign-in")
+
+    pomona.connect = refused
+    with pytest.raises(TransferError, match="could not sign in.*refused"):
+        vnc.show_desktop(FakeTunnel(5901), LOGIN)
+
+    pomona.connect = lambda host, port, **kw: types.SimpleNamespace(error=None)
+    pomona.window = lambda session, reconnect: types.SimpleNamespace(error="hung up")
+    with pytest.raises(TransferError, match="session ended: hung up"):
+        vnc.show_desktop(FakeTunnel(5901), LOGIN)
 
 
 def test_login_hides_password():
@@ -55,24 +134,6 @@ def test_free_port_and_listening():
         s.bind(("127.0.0.1", port))
         s.listen()
         assert vnc.listening(port)
-
-
-def test_find_viewer(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        "shutil.which",
-        lambda name: "/opt/bin/vncviewer" if name == "vncviewer" else None,
-    )
-    assert vnc.find_viewer() == "/opt/bin/vncviewer"
-
-    monkeypatch.setattr("shutil.which", lambda name: None)
-    monkeypatch.setattr(sys, "platform", "win32")
-    monkeypatch.setenv("ProgramFiles", str(tmp_path))
-    monkeypatch.delenv("ProgramFiles(x86)", raising=False)
-    assert vnc.find_viewer() is None
-    exe = tmp_path / "TigerVNC" / "vncviewer.exe"
-    exe.parent.mkdir()
-    exe.write_bytes(b"")
-    assert vnc.find_viewer() == str(exe)
 
 
 def test_open_tunnel_waits_for_the_port_and_closes():

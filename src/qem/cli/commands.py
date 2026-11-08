@@ -475,30 +475,33 @@ def cmd_password(args: argparse.Namespace) -> int:
 
 def cmd_desktop(args: argparse.Namespace) -> int:
     mac = ssh_session(ProjectStore())
-    viewer = None if args.no_viewer else args.viewer or vnc.find_viewer()
-    screen_sharing = not viewer and not args.no_viewer and sys.platform == "darwin"
-    login = mac.password() if viewer or screen_sharing else None
+    if not args.no_viewer:
+        login = mac.password()
+        with mac.desktop_tunnel(args.port) as tunnel:
+            err("Opening the Mac's desktop. Closing the window ends the tunnel.")
+            try:
+                vnc.show_desktop(
+                    tunnel,
+                    login,
+                    title=f"NoMac {mac.id}",
+                    reopen=lambda: mac.desktop_tunnel(tunnel.port),
+                )
+            except KeyboardInterrupt:
+                return 0
+            except RuntimeError as e:
+                err(f"qem: could not open a window: {e}")
+                err(
+                    "`qem desktop --no-viewer` opens only the tunnel, for another viewer."
+                )
+                return 1
+        return 0
     with mac.desktop_tunnel(args.port) as tunnel:
         address = vnc.address(tunnel.port)
-        if viewer:
-            err(
-                f"Opening the Mac's desktop in {Path(viewer).stem} ({address}). Closing the viewer ends the tunnel."
-            )
-            env = {**os.environ, **vnc.viewer_env(login)}
-            return subprocess.run(
-                vnc.viewer_argv(viewer, tunnel.port), env=env, check=False
-            ).returncode
-        if screen_sharing:
-            subprocess.run(["open", vnc.vnc_url(login, tunnel.port)], check=True)
-            err("Screen Sharing is opening. Ctrl-C ends the tunnel.")
-        else:
-            if not args.no_viewer:
-                err("No VNC viewer found: install TigerVNC or pass --viewer.")
-            print(address, flush=True)
-            err(
-                f"Connect a VNC viewer to {address} as {ssh_mod.USERNAME}; `qem password` prints the password."
-            )
-            err("Ctrl-C ends the tunnel.")
+        print(address, flush=True)
+        err(
+            f"Connect a VNC viewer to {address} as {ssh_mod.USERNAME}; `qem password` prints the password."
+        )
+        err("Ctrl-C ends the tunnel.")
         try:
             code = tunnel.wait()
         except KeyboardInterrupt:

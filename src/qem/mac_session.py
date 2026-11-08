@@ -241,7 +241,7 @@ class MacSession:
     ) -> vnc.DesktopTunnel:
         """Forward 127.0.0.1:`port` (default: a free one) to the Mac's Screen Sharing.
 
-        Returns once a VNC viewer can connect there, signed in with password().
+        Returns once a viewer (vnc.show_desktop) can connect there, signed in with password().
         Close the tunnel (or use it as a context manager) when done.
         """
         env = {**os.environ, **self.prepare_ssh()}

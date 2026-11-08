@@ -8,7 +8,7 @@ import sys
 import httpx
 import pytest
 
-from qem import Nomac, NomacError
+from qem import Nomac, NomacError, TransferError
 from qem.cli import EXIT_STILL_RUNNING, main
 from qem.cli.commands import copy_to_clipboard, parse_duration, parse_forward
 from qem.cli.project_store import ProjectStore, find_identity, sessions_root
@@ -401,10 +401,11 @@ class FakeTunnel:
 
 @pytest.fixture
 def desktop(cli, api, monkeypatch):
-    """`qem desktop` with a fake tunnel on port 5999; returns (tunnels, viewer runs)."""
+    """`qem desktop` with a fake tunnel on port 5999 and a fake window;
+    returns (tunnels, windows), windows being show_desktop's arguments."""
     ProjectStore().save({"id": "ses_1", "identity": "/k/id"})
     api.on("GET", "/mac/sessions/ses_1/password", PASSWORD)
-    tunnels, runs = [], []
+    tunnels, windows = [], []
 
     def interrupted():
         raise KeyboardInterrupt
@@ -415,31 +416,50 @@ def desktop(cli, api, monkeypatch):
 
     monkeypatch.setattr("qem.mac_session.MacSession.desktop_tunnel", tunnel)
     monkeypatch.setattr(
-        "qem.cli.commands.subprocess.run",
-        lambda argv, **kw: (
-            runs.append((argv, kw.get("env") or {}))
-            or subprocess.CompletedProcess(argv, 0)
-        ),
+        "qem.vnc.show_desktop",
+        lambda tunnel, login, **kw: windows.append((tunnel, login, kw)),
     )
-    return tunnels, runs
+    return tunnels, windows
 
 
-def test_desktop_starts_the_viewer_signed_in(cli, desktop, monkeypatch):
-    tunnels, runs = desktop
-    monkeypatch.setattr("qem.vnc.find_viewer", lambda: "C:/TigerVNC/vncviewer.exe")
+def test_desktop_opens_the_window_signed_in(cli, desktop, capsys):
+    tunnels, windows = desktop
     assert cli("desktop") == 0
-    argv, env = runs[0]
-    assert argv == ["C:/TigerVNC/vncviewer.exe", "127.0.0.1::5999"]
-    assert env["VNC_USERNAME"] == "agent" and env["VNC_PASSWORD"] == "s3cret"
-    assert tunnels[0].closed
+    tunnel, login, kw = windows[0]
+    assert tunnel is tunnels[0] and tunnel.closed
+    assert (login.user, login.password) == ("agent", "s3cret")
+    assert kw["title"] == "NoMac ses_1"
+    kw["reopen"]()  # a dropped ssh is replaced on the same port
+    assert tunnels[1].port == 5999
+    out = capsys.readouterr()
+    assert out.out == "" and "s3cret" not in out.err
+
+
+def test_desktop_without_a_window(cli, desktop, capsys, monkeypatch):
+    def no_window(tunnel, login, **kw):
+        raise RuntimeError("the window cannot be drawn to")
+
+    monkeypatch.setattr("qem.vnc.show_desktop", no_window)
+    assert cli("desktop") == 1
+    assert "--no-viewer" in capsys.readouterr().err
+    assert desktop[0][0].closed
+
+
+def test_desktop_reports_a_failed_session(cli, desktop, capsys, monkeypatch):
+    def failed(tunnel, login, **kw):
+        raise TransferError("the desktop session ended: hung up")
+
+    monkeypatch.setattr("qem.vnc.show_desktop", failed)
+    assert cli("desktop") == 1
+    assert "qem: the desktop session ended: hung up" in capsys.readouterr().err
 
 
 def test_desktop_no_viewer_holds_until_ctrl_c(cli, desktop, capsys):
-    tunnels, runs = desktop
+    tunnels, windows = desktop
     assert cli("desktop", "--no-viewer", "--port", "5999") == 0
     out = capsys.readouterr()
     assert out.out == "127.0.0.1::5999\n" and "s3cret" not in out.out + out.err
-    assert not runs and tunnels[0].closed
+    assert not windows and tunnels[0].closed
 
 
 def test_desktop_reports_a_closed_tunnel(cli, desktop, capsys, monkeypatch):

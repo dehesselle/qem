@@ -152,23 +152,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="add the Include line to ~/.ssh/config without asking",
     )
 
-    p = cmd("desktop", "show the Mac's desktop in a VNC viewer, through ssh")
+    p = cmd("desktop", "show the Mac's desktop in a window, through ssh")
     p.add_argument(
         "--port",
         type=int,
         metavar="PORT",
-        help="local port for the viewer (default: a free one)",
+        help="local port for the tunnel (default: a free one)",
     )
-    group = p.add_mutually_exclusive_group()
-    group.add_argument(
-        "--viewer",
-        metavar="PATH",
-        help="VNC viewer to start (default: TigerVNC's vncviewer)",
-    )
-    group.add_argument(
+    p.add_argument(
         "--no-viewer",
         action="store_true",
-        help="only open the tunnel and print its address",
+        help="only open the tunnel and print its address, for another viewer",
     )
     p = cmd("password", "print the Mac's login password for this session")
     p.add_argument(
