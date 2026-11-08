@@ -1,6 +1,6 @@
-# qem
+# quick ephemeral mac
 
-qem ("quick ephemeral mac") is a Python library and command-line tool for
+`qem` is a Python library and command-line tool for
 [NoMac](https://nomac.app) cloud Macs. It can start a Mac, run commands on it, open SSH
 sessions and sync a project folder. It does this without Node or npm, and it runs natively
 on Windows as well as on macOS and Linux.
