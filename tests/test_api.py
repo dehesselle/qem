@@ -43,10 +43,19 @@ def test_base_url_from_env(api, monkeypatch):
 
 @pytest.mark.parametrize(
     "status, cls",
-    [(402, PaymentRequired), (410, OutputExpired), (422, PreconditionFailed), (500, ApiError)],
+    [
+        (402, PaymentRequired),
+        (410, OutputExpired),
+        (422, PreconditionFailed),
+        (500, ApiError),
+    ],
 )
 def test_error_envelope(api, status, cls):
-    api.on("GET", "/me", (status, {"error": {"code": "some_code", "message": "Some message"}}))
+    api.on(
+        "GET",
+        "/me",
+        (status, {"error": {"code": "some_code", "message": "Some message"}}),
+    )
     with pytest.raises(cls) as exc:
         transport(api).request("GET", "/me")
     assert exc.value.code == "some_code"
@@ -81,15 +90,29 @@ def test_device_login(api):
     api.on(
         "POST",
         "/device/start",
-        {"device_code": "dc", "user_code": "ABCD-1234", "verification_uri": "https://nomac.app/device",
-         "verification_uri_complete": "https://nomac.app/device?code=ABCD-1234", "interval": 1, "expires_in": 60},
+        {
+            "device_code": "dc",
+            "user_code": "ABCD-1234",
+            "verification_uri": "https://nomac.app/device",
+            "verification_uri_complete": "https://nomac.app/device?code=ABCD-1234",
+            "interval": 1,
+            "expires_in": 60,
+        },
     )
-    api.on("POST", "/device/token", {"status": "pending"}, {"status": "slow_down"}, {"status": "pending"},
-           {"status": "approved", "api_key": "nmk_new"})
+    api.on(
+        "POST",
+        "/device/token",
+        {"status": "pending"},
+        {"status": "slow_down"},
+        {"status": "pending"},
+        {"status": "approved", "api_key": "nmk_new"},
+    )
     sleeps = []
     login = DeviceLogin(transport(api))
     code = login.start("my laptop")
-    assert code == DeviceCode("dc", "ABCD-1234", "https://nomac.app/device?code=ABCD-1234", 1, 60)
+    assert code == DeviceCode(
+        "dc", "ABCD-1234", "https://nomac.app/device?code=ABCD-1234", 1, 60
+    )
     assert login.poll(code, sleep=sleeps.append) == "nmk_new"
     # RFC 8628: wait the interval before each poll; slow_down adds 5 s for good
     assert sleeps == [1, 1, 6, 6]
@@ -100,10 +123,21 @@ def test_device_login(api):
 
 def test_device_login_defaults(api, monkeypatch):
     monkeypatch.setattr("socket.gethostname", lambda: "box")
-    api.on("POST", "/device/start", {"device_code": "dc", "user_code": "C", "verification_uri": "https://nomac.app/device"})
+    api.on(
+        "POST",
+        "/device/start",
+        {
+            "device_code": "dc",
+            "user_code": "C",
+            "verification_uri": "https://nomac.app/device",
+        },
+    )
     code = DeviceLogin(transport(api)).start()
     assert api.body(0) == {"client_name": "qem on box"}
-    assert (code.url, code.interval) == ("https://nomac.app/device", 5)  # RFC 8628's default interval
+    assert (code.url, code.interval) == (
+        "https://nomac.app/device",
+        5,
+    )  # RFC 8628's default interval
     assert code.expires_in > 0
 
 
@@ -124,11 +158,19 @@ def test_device_login_fails(api, status):
 def test_device_login_approved_without_key(api):
     api.on("POST", "/device/token", {"status": "approved"})
     with pytest.raises(LoginFailed, match="no API key"):
-        DeviceLogin(transport(api)).poll(DeviceCode("dc", "X", "u", 5, 60), sleep=lambda s: None)
+        DeviceLogin(transport(api)).poll(
+            DeviceCode("dc", "X", "u", 5, 60), sleep=lambda s: None
+        )
 
 
 def test_device_login_runs_out_of_time(api):
-    api.on("POST", "/device/token", {"status": "pending"}, {"status": "slow_down"}, {"status": "pending"})
+    api.on(
+        "POST",
+        "/device/token",
+        {"status": "pending"},
+        {"status": "slow_down"},
+        {"status": "pending"},
+    )
     now = [0.0]
     sleeps = []
 
@@ -145,16 +187,34 @@ def test_device_login_runs_out_of_time(api):
 
 
 def test_device_login_understands_rfc_8628_errors(api):
-    api.on("POST", "/device/token", (400, {"error": "authorization_pending"}), (400, {"error": "slow_down"}),
-           {"status": "approved", "api_key": "nmk_new"})
+    api.on(
+        "POST",
+        "/device/token",
+        (400, {"error": "authorization_pending"}),
+        (400, {"error": "slow_down"}),
+        {"status": "approved", "api_key": "nmk_new"},
+    )
     sleeps = []
-    assert DeviceLogin(transport(api)).poll(DeviceCode("dc", "X", "u", 2, 60), sleep=sleeps.append) == "nmk_new"
+    assert (
+        DeviceLogin(transport(api)).poll(
+            DeviceCode("dc", "X", "u", 2, 60), sleep=sleeps.append
+        )
+        == "nmk_new"
+    )
     assert sleeps == [2, 2, 7]
 
     api.on("POST", "/device/token", (400, {"error": "access_denied"}))
     with pytest.raises(LoginFailed, match="denied"):
-        DeviceLogin(transport(api)).poll(DeviceCode("dc", "X", "u", 2, 60), sleep=lambda s: None)
+        DeviceLogin(transport(api)).poll(
+            DeviceCode("dc", "X", "u", 2, 60), sleep=lambda s: None
+        )
 
-    api.on("POST", "/device/token", (500, {"error": {"code": "internal", "message": "oops"}}))
+    api.on(
+        "POST",
+        "/device/token",
+        (500, {"error": {"code": "internal", "message": "oops"}}),
+    )
     with pytest.raises(ApiError):
-        DeviceLogin(transport(api)).poll(DeviceCode("dc", "X", "u", 2, 60), sleep=lambda s: None)
+        DeviceLogin(transport(api)).poll(
+            DeviceCode("dc", "X", "u", 2, 60), sleep=lambda s: None
+        )

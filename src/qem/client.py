@@ -64,7 +64,9 @@ class Nomac:
     def live_sessions(self) -> list[SessionInfo]:
         return [s for s in self.sessions() if s.live]
 
-    def session(self, session_id: str, *, identity: Path | str | None = None) -> MacSession:
+    def session(
+        self, session_id: str, *, identity: Path | str | None = None
+    ) -> MacSession:
         """Handle to an existing session. ssh needs the `identity` it was started with."""
         return MacSession(
             self.transport,
@@ -99,7 +101,10 @@ class Nomac:
         request_key = request_key or new_request_key()
         generated = None
         if ssh and identity is None:
-            identity = keys_dir() / f"id_ed25519_{hashlib.sha256(request_key.encode()).hexdigest()[:32]}"
+            identity = (
+                keys_dir()
+                / f"id_ed25519_{hashlib.sha256(request_key.encode()).hexdigest()[:32]}"
+            )
             if not identity.exists():
                 generated = generate_identity(identity)
         body: dict[str, Any] = {
@@ -111,12 +116,16 @@ class Nomac:
             },
         }
         if identity:
-            body["public_key"] = Path(f"{identity}.pub").read_text(encoding="utf-8").strip()
+            body["public_key"] = (
+                Path(f"{identity}.pub").read_text(encoding="utf-8").strip()
+            )
         if parallel:
             body["parallel"] = True
         try:
             info = SessionInfo.from_json(
-                self.transport.request("POST", "/mac/sessions", json=body, idempotency_key=request_key)
+                self.transport.request(
+                    "POST", "/mac/sessions", json=body, idempotency_key=request_key
+                )
             )
         except ApiError:
             # A definite refusal: no Mac will ever hold this key. (After a

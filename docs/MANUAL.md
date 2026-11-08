@@ -197,18 +197,20 @@ The library does the same; `qem.ssh.choose_ssh()` returns the path and the reaso
 ```python
 from qem import Nomac, ApiError
 
-nm = Nomac()                                   # or Nomac(api_key=..., base_url=...)
-mac = nm.start(max_duration=1800, idle_timeout=600, max_cost=1.0)   # waits until ready
+nm = Nomac()  # or Nomac(api_key=..., base_url=...)
+mac = nm.start(max_duration=1800, idle_timeout=600, max_cost=1.0)  # waits until ready
 try:
     job = mac.exec(["xcodebuild", "-version"], wait=30)
     if job.running:
         job = mac.wait_job(job.id, timeout=600)
     print(job.exit_code, job.stdout)
 
-    synced = mac.sync("./MyApp", delete=True)    # -> SyncResult(remote, uploaded, deleted, kept_local)
-    mac.ssh(["ls", "-la", synced.remote])        # remote: "/Users/agent/drive/src/MyApp"
+    # -> SyncResult(remote, uploaded, deleted, kept_local)
+    synced = mac.sync("./MyApp", delete=True)
+    mac.ssh(["ls", "-la", synced.remote])  # remote: "/Users/agent/drive/src/MyApp"
     out = mac.ssh("uname -a", capture=True).stdout
-    result = mac.pull("build/App.ipa", "./out", project="MyApp")   # -> PullResult(dest, written, kept)
+    # -> PullResult(dest, written, kept)
+    result = mac.pull("build/App.ipa", "./out", project="MyApp")
 finally:
     mac.stop()
 ```

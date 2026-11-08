@@ -27,7 +27,9 @@ class FakeApi:
     """Route table for httpx.MockTransport; records every request."""
 
     def __init__(self):
-        self.routes: dict[tuple[str, str], Callable[[httpx.Request], httpx.Response] | list] = {}
+        self.routes: dict[
+            tuple[str, str], Callable[[httpx.Request], httpx.Response] | list
+        ] = {}
         self.requests: list[httpx.Request] = []
 
     def on(self, method: str, path: str, *responses: dict | tuple[int, dict]) -> None:
@@ -38,7 +40,9 @@ class FakeApi:
         self.requests.append(request)
         key = (request.method, request.url.path)
         if key not in self.routes:
-            return httpx.Response(404, json={"error": {"code": "not_found", "message": f"no route {key}"}})
+            return httpx.Response(
+                404, json={"error": {"code": "not_found", "message": f"no route {key}"}}
+            )
         queue = self.routes[key]
         item = queue.pop(0) if len(queue) > 1 else queue[0]
         status, body = item if isinstance(item, tuple) else (200, item)
@@ -48,7 +52,9 @@ class FakeApi:
         return json.loads(self.requests[index].content)
 
     def paths(self) -> list[str]:
-        return [f"{r.method} {r.url.path.removeprefix('/api/v1')}" for r in self.requests]
+        return [
+            f"{r.method} {r.url.path.removeprefix('/api/v1')}" for r in self.requests
+        ]
 
 
 @pytest.fixture

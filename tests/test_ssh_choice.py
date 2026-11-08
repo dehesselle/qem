@@ -94,8 +94,14 @@ def test_no_ssh_on_path_but_git_without_a_desktop(windows):
 def test_other_platforms_ignore_the_session(monkeypatch):
     monkeypatch.delenv("QEM_SSH", raising=False)
     monkeypatch.setattr(sys, "platform", "linux")
-    monkeypatch.setattr(ssh.shutil, "which", lambda name: {"ssh": "/usr/bin/ssh", "git": "/usr/bin/git"}.get(name))
-    monkeypatch.setattr(ssh, "windows_session_id", lambda: pytest.fail("asked for a Windows session"))
+    monkeypatch.setattr(
+        ssh.shutil,
+        "which",
+        lambda name: {"ssh": "/usr/bin/ssh", "git": "/usr/bin/git"}.get(name),
+    )
+    monkeypatch.setattr(
+        ssh, "windows_session_id", lambda: pytest.fail("asked for a Windows session")
+    )
     assert ssh.choose_ssh() == ssh.SshClient("/usr/bin/ssh", "PATH")
 
 

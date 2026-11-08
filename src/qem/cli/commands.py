@@ -97,7 +97,11 @@ def cmd_login(args: argparse.Namespace) -> int:
 
 
 def cmd_logout(args: argparse.Namespace) -> int:
-    print("Removed the stored API key." if config.delete_api_key() else "No stored API key.")
+    print(
+        "Removed the stored API key."
+        if config.delete_api_key()
+        else "No stored API key."
+    )
     if os.environ.get("NOMAC_API_KEY"):
         err("NOMAC_API_KEY is still set in the environment.")
     return 0
@@ -137,7 +141,9 @@ def cmd_start(args: argparse.Namespace) -> int:
             wait=None,
         )
     except NetworkError:
-        err(f"No answer from NoMac. Retry with --request-key {request_key} so no second Mac starts.")
+        err(
+            f"No answer from NoMac. Retry with --request-key {request_key} so no second Mac starts."
+        )
         raise
     except ApiError as e:
         if e.code != "session_limit_reached":
@@ -150,11 +156,19 @@ def cmd_start(args: argparse.Namespace) -> int:
             "for this folder; `qem start --parallel` starts another one."
         ) from e
 
-    store.save({"id": mac.id, "identity": str(mac.identity) if mac.identity else None, "request_key": request_key})
+    store.save(
+        {
+            "id": mac.id,
+            "identity": str(mac.identity) if mac.identity else None,
+            "request_key": request_key,
+        }
+    )
     err(f"Waiting for {mac.id} to be ready ...")
     print_session(mac.wait_ready(args.wait))
     if not mac.identity:
-        err("This Mac was started elsewhere, so ssh, sync and pull will not work from here.")
+        err(
+            "This Mac was started elsewhere, so ssh, sync and pull will not work from here."
+        )
     return 0
 
 
@@ -186,7 +200,9 @@ def cmd_attach(args: argparse.Namespace) -> int:
     store.save({"id": mac.id, "identity": str(mac.identity) if mac.identity else None})
     print_session(info)
     if not mac.identity:
-        err("This Mac was started elsewhere, so ssh, sync and pull will not work from here.")
+        err(
+            "This Mac was started elsewhere, so ssh, sync and pull will not work from here."
+        )
     return 0
 
 
@@ -220,7 +236,11 @@ def write_stream(stream: str, data: bytes | str) -> None:
 def print_rest(mac: MacSession, job_id: str, stream: str, cursor: int) -> None:
     for chunk in mac.iter_output(job_id, stream, cursor):
         write_stream(stream, chunk.data)
-        if chunk.tail and chunk.tail_offset is not None and chunk.tail_offset > chunk.next_cursor:
+        if (
+            chunk.tail
+            and chunk.tail_offset is not None
+            and chunk.tail_offset > chunk.next_cursor
+        ):
             err(f"\n[... {chunk.tail_offset - chunk.next_cursor} bytes not kept ...]")
             write_stream(stream, chunk.tail)
 
@@ -230,8 +250,12 @@ def finish_job(mac: MacSession, job: Job, *, as_json: bool, waited: float) -> in
         print_json(job.raw)
     elif job.running:
         after = f" after {waited:g} s" if waited else ""
-        err(f"{job.id} is still running on the Mac{after}. It was not stopped, so do not start it again.")
-        err(f"Wait for it with `qem job {job.id} --wait 600`, or stop it with `qem cancel {job.id}`.")
+        err(
+            f"{job.id} is still running on the Mac{after}. It was not stopped, so do not start it again."
+        )
+        err(
+            f"Wait for it with `qem job {job.id} --wait 600`, or stop it with `qem cancel {job.id}`."
+        )
     elif job.exited:
         for stream in ("stdout", "stderr"):
             inline = getattr(job, stream)
@@ -244,7 +268,9 @@ def finish_job(mac: MacSession, job: Job, *, as_json: bool, waited: float) -> in
         if job.reason in ("timeout", "cancelled"):
             err(f"[{job.id} ended: {job.reason}]")
     else:
-        err(f"{job.id} is {job.state}; do not rerun it. Check it with `qem job {job.id}`.")
+        err(
+            f"{job.id} is {job.state}; do not rerun it. Check it with `qem job {job.id}`."
+        )
 
     if job.running:
         return EXIT_STILL_RUNNING
@@ -260,9 +286,13 @@ def cmd_exec(args: argparse.Namespace) -> int:
     request_key = args.request_key or new_request_key("qem-cli")
     cwd = args.cwd or (store.load() or {}).get("synced_dir")
     try:
-        job = mac.exec(argv, cwd=cwd, timeout=args.timeout, wait=args.wait, request_key=request_key)
+        job = mac.exec(
+            argv, cwd=cwd, timeout=args.timeout, wait=args.wait, request_key=request_key
+        )
     except NetworkError:
-        err(f"No answer from NoMac. Retry with --request-key {request_key} so the command does not run twice.")
+        err(
+            f"No answer from NoMac. Retry with --request-key {request_key} so the command does not run twice."
+        )
         raise
     return finish_job(mac, job, as_json=args.json, waited=args.wait)
 
@@ -286,7 +316,10 @@ def cmd_output(args: argparse.Namespace) -> int:
 
 def cmd_cancel(args: argparse.Namespace) -> int:
     job = current(Nomac(), ProjectStore()).cancel(args.job_id)
-    print(f"{job.id or args.job_id}  {job.state}" + (f"  ({job.reason})" if job.reason else ""))
+    print(
+        f"{job.id or args.job_id}  {job.state}"
+        + (f"  ({job.reason})" if job.reason else "")
+    )
     return 0
 
 
@@ -309,7 +342,9 @@ def note_ssh_choice() -> None:
     except TransferError:
         return  # running ssh reports it
     if client.source == "git":
-        err(f"Using Git's ssh ({client.path}): Windows OpenSSH does not finish commands without a desktop session.")
+        err(
+            f"Using Git's ssh ({client.path}): Windows OpenSSH does not finish commands without a desktop session."
+        )
 
 
 def parse_forward(text: str) -> tuple[int, int]:
@@ -317,7 +352,9 @@ def parse_forward(text: str) -> tuple[int, int]:
     m = re.fullmatch(r"\s*(\d{1,5})\s*:\s*(\d{1,5})\s*", text)
     ports = (int(m[1]), int(m[2])) if m else (0, 0)
     if not all(1 <= port <= 65535 for port in ports):
-        raise NomacError(f"not a port forward: {text!r} (use LOCAL:REMOTE with ports 1-65535, e.g. --forward 8080:3000)")
+        raise NomacError(
+            f"not a port forward: {text!r} (use LOCAL:REMOTE with ports 1-65535, e.g. --forward 8080:3000)"
+        )
     return ports
 
 
@@ -328,7 +365,9 @@ def cmd_ssh(args: argparse.Namespace) -> int:
         raise NomacError("--forward runs no command: drop the words after --")
     mac = ssh_session(ProjectStore())
     if forward:
-        err(f"Forwarding http://127.0.0.1:{forward[0]} to port {forward[1]} on the Mac. Ctrl-C ends it.")
+        err(
+            f"Forwarding http://127.0.0.1:{forward[0]} to port {forward[1]} on the Mac. Ctrl-C ends it."
+        )
     # Like ssh itself, the words are joined for the Mac's shell.
     return mac.ssh(" ".join(argv) if argv else None, forward=forward).returncode
 
@@ -350,7 +389,9 @@ def ensure_include(include: str, assume_yes: bool) -> bool:
             return False
     user_config.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     # Include must come before the first Host block to apply to every host.
-    user_config.write_text(f"{include}\n\n{text}" if text else f"{include}\n", encoding="utf-8")
+    user_config.write_text(
+        f"{include}\n\n{text}" if text else f"{include}\n", encoding="utf-8"
+    )
     return True
 
 
@@ -361,12 +402,16 @@ def cmd_ssh_config(args: argparse.Namespace) -> int:
     mac = ssh_session(ProjectStore(), runs_ssh=False)
     mac.prepare_ssh()
     directory = config.home() / "ssh_config.d"
-    config.write_private(directory / f"{name}.conf", ssh_mod.ssh_config_block(name, mac.id, mac.identity))
+    config.write_private(
+        directory / f"{name}.conf", ssh_mod.ssh_config_block(name, mac.id, mac.identity)
+    )
     include = f"Include {(directory / '*.conf').as_posix()}"
     if ensure_include(include, args.yes):
         print(f"`ssh {name}` now reaches {mac.id}.")
     else:
-        print(f"Wrote {directory / (name + '.conf')}. Add this line to the top of ~/.ssh/config:")
+        print(
+            f"Wrote {directory / (name + '.conf')}. Add this line to the top of ~/.ssh/config:"
+        )
         print(include)
     return 0
 
@@ -384,13 +429,21 @@ def copy_to_clipboard(text: str) -> None:
         try:
             # No pipes for its output: xclip and xsel stay in the background to
             # serve the selection, and would hold a pipe open.
-            result = subprocess.run([exe, *argv[1:]], input=text.encode(encoding), stdout=subprocess.DEVNULL,
-                                    stderr=subprocess.DEVNULL, timeout=10, check=False)
+            result = subprocess.run(
+                [exe, *argv[1:]],
+                input=text.encode(encoding),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=10,
+                check=False,
+            )
         except (OSError, subprocess.TimeoutExpired):
             continue
         if result.returncode == 0:
             return
-    raise NomacError("found no working clipboard tool; plain `qem password` shows it in the terminal")
+    raise NomacError(
+        "found no working clipboard tool; plain `qem password` shows it in the terminal"
+    )
 
 
 def clipboard_tools() -> list[tuple[list[str], str]]:
@@ -428,9 +481,13 @@ def cmd_desktop(args: argparse.Namespace) -> int:
     with mac.desktop_tunnel(args.port) as tunnel:
         address = vnc.address(tunnel.port)
         if viewer:
-            err(f"Opening the Mac's desktop in {Path(viewer).stem} ({address}). Closing the viewer ends the tunnel.")
+            err(
+                f"Opening the Mac's desktop in {Path(viewer).stem} ({address}). Closing the viewer ends the tunnel."
+            )
             env = {**os.environ, **vnc.viewer_env(login)}
-            return subprocess.run(vnc.viewer_argv(viewer, tunnel.port), env=env, check=False).returncode
+            return subprocess.run(
+                vnc.viewer_argv(viewer, tunnel.port), env=env, check=False
+            ).returncode
         if screen_sharing:
             subprocess.run(["open", vnc.vnc_url(login, tunnel.port)], check=True)
             err("Screen Sharing is opening. Ctrl-C ends the tunnel.")
@@ -438,7 +495,9 @@ def cmd_desktop(args: argparse.Namespace) -> int:
             if not args.no_viewer:
                 err("No VNC viewer found: install TigerVNC or pass --viewer.")
             print(address, flush=True)
-            err(f"Connect a VNC viewer to {address} as {ssh_mod.USERNAME}; `qem password` prints the password.")
+            err(
+                f"Connect a VNC viewer to {address} as {ssh_mod.USERNAME}; `qem password` prints the password."
+            )
             err("Ctrl-C ends the tunnel.")
         try:
             code = tunnel.wait()
@@ -477,9 +536,14 @@ def cmd_sync(args: argparse.Namespace) -> int:
         if root == store.project:
             store.update(synced_dir=result.remote)
         removed = f", removed {result.deleted}" if result.deleted else ""
-        print(f"Synced {root} -> {result.remote}: {result.uploaded} files sent{removed}", flush=True)
+        print(
+            f"Synced {root} -> {result.remote}: {result.uploaded} files sent{removed}",
+            flush=True,
+        )
         if new := [p for p in result.kept_local if p not in reported]:
-            err(f"Kept secrets on this computer: {', '.join(new)}. A `!` line in .nomacignore sends one.")
+            err(
+                f"Kept secrets on this computer: {', '.join(new)}. A `!` line in .nomacignore sends one."
+            )
             reported.update(new)
 
     once()
@@ -497,8 +561,14 @@ def cmd_pull(args: argparse.Namespace) -> int:
     mac = ssh_session(store)
     synced = (store.load() or {}).get("synced_dir")
     project = synced.rsplit("/", 1)[-1] if synced else None
-    result = mac.pull(args.remote, args.local, project=project, overwrite=args.overwrite)
-    kept = f", kept {result.kept} existing (use --overwrite to replace them)" if result.kept else ""
+    result = mac.pull(
+        args.remote, args.local, project=project, overwrite=args.overwrite
+    )
+    kept = (
+        f", kept {result.kept} existing (use --overwrite to replace them)"
+        if result.kept
+        else ""
+    )
     print(f"Pulled {args.remote} -> {result.dest}: {result.written} files{kept}")
     return 0
 
@@ -506,7 +576,9 @@ def cmd_pull(args: argparse.Namespace) -> int:
 def cmd_proxy(args: argparse.Namespace) -> int:
     from ..tunnel import access_from_env, run_tunnel
 
-    access = access_from_env(args.session_id) or Nomac().session(args.session_id).access()
+    access = (
+        access_from_env(args.session_id) or Nomac().session(args.session_id).access()
+    )
     run_tunnel(access)
     return 0
 
@@ -543,7 +615,9 @@ def run(args: argparse.Namespace) -> int:
         return 130
     except PaymentRequired as e:
         err(f"qem: {e}")
-        if buy_url := (e.body.get("error") or {}).get("buy_url") or e.body.get("buy_url"):
+        if buy_url := (e.body.get("error") or {}).get("buy_url") or e.body.get(
+            "buy_url"
+        ):
             err(f"Buy credit: {buy_url}")
         return 1
     except NomacError as e:

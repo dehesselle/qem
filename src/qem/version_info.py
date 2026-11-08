@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: 0BSD
 
+
 def version() -> str:
     try:
         from .version import __version__

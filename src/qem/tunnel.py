@@ -40,7 +40,11 @@ ENV_TOKEN = "QEM_TUNNEL_TOKEN"
 
 
 def tunnel_env(access: Access) -> dict[str, str]:
-    return {ENV_SESSION: access.session_id, ENV_GATEWAY: access.gateway, ENV_TOKEN: access.token}
+    return {
+        ENV_SESSION: access.session_id,
+        ENV_GATEWAY: access.gateway,
+        ENV_TOKEN: access.token,
+    }
 
 
 def access_from_env(session_id: str) -> Access | None:
@@ -78,12 +82,16 @@ def tunnel_url(gateway: str, session_id: str) -> str:
     if parts.username is not None or parts.password is not None:
         raise TunnelError(f"unusable gateway {gateway!r}: it carries a login")
     if parts.path not in ("", "/") or parts.query or parts.fragment:
-        raise TunnelError(f"unusable gateway {gateway!r}: not an origin (scheme://host[:port])")
+        raise TunnelError(
+            f"unusable gateway {gateway!r}: not an origin (scheme://host[:port])"
+        )
     if parts.scheme in ("https", "wss"):
         scheme = "wss"
     elif parts.scheme in ("http", "ws"):
         if not _loopback(host):
-            raise TunnelError(f"unusable gateway {gateway!r}: the token would travel unencrypted")
+            raise TunnelError(
+                f"unusable gateway {gateway!r}: the token would travel unencrypted"
+            )
         scheme = "ws"
     else:
         raise TunnelError(f"unusable gateway {gateway!r}: scheme must be https")
@@ -132,7 +140,9 @@ def open_tunnel(access: Access, *, open_timeout: float = 15) -> ClientConnection
             legacy=True,  # we keep the connection open past this call
         )
     except InvalidStatus as e:
-        raise TunnelError(f"gateway {gateway} refused the tunnel: HTTP {e.response.status_code}") from e
+        raise TunnelError(
+            f"gateway {gateway} refused the tunnel: HTTP {e.response.status_code}"
+        ) from e
     except (InvalidHandshake, WebSocketException, ValueError) as e:
         # ValueError: websockets refuses some redirects with it.
         raise TunnelError(f"gateway {gateway} refused the tunnel: {e}") from e
@@ -143,7 +153,7 @@ def open_tunnel(access: Access, *, open_timeout: float = 15) -> ClientConnection
 def _write_all(fd: int, data: bytes) -> None:
     view = memoryview(data)
     while view:
-        view = view[os.write(fd, view):]
+        view = view[os.write(fd, view) :]
 
 
 def pump(ws: ClientConnection, stdin_fd: int = 0, stdout_fd: int = 1) -> None:
@@ -161,9 +171,13 @@ def pump(ws: ClientConnection, stdin_fd: int = 0, stdout_fd: int = 1) -> None:
     threading.Thread(target=upstream, name="qem-tunnel-up", daemon=True).start()
     try:
         for message in ws:
-            _write_all(stdout_fd, message if isinstance(message, bytes) else message.encode())
+            _write_all(
+                stdout_fd, message if isinstance(message, bytes) else message.encode()
+            )
     except ConnectionClosedError as e:
-        raise TunnelError(f"tunnel disconnected ({e}); an SSH connection cannot be resumed") from e
+        raise TunnelError(
+            f"tunnel disconnected ({e}); an SSH connection cannot be resumed"
+        ) from e
     except OSError as e:
         # ssh closed our stdout: it is done with us.
         ws.close()

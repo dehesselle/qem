@@ -104,7 +104,9 @@ class Job:
         return cls(
             id=str(j.get("id") or j.get("job_id") or ""),
             state=str(j.get("state", "unknown")),
-            exit_code=exit_code if isinstance(exit_code, int) and not isinstance(exit_code, bool) else None,
+            exit_code=exit_code
+            if isinstance(exit_code, int) and not isinstance(exit_code, bool)
+            else None,
             reason=j.get("reason"),
             stdout=j.get("stdout"),
             stderr=j.get("stderr"),

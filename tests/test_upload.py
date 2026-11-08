@@ -57,7 +57,15 @@ def test_filter_decides_for_paths_that_exist_only_on_the_mac(tmp_path):
     assert filt.includes("src/old.py")
     assert filt.includes("build/keep/new.txt")
     assert filt.includes("sub/keep.tmp")
-    for left_out in ("build/out.o", "build/", "logs/x.log", "node_modules/a/", "sub/b.tmp", "secret/", "x/secret/y"):
+    for left_out in (
+        "build/out.o",
+        "build/",
+        "logs/x.log",
+        "node_modules/a/",
+        "sub/b.tmp",
+        "secret/",
+        "x/secret/y",
+    ):
         assert not filt.includes(left_out), left_out
 
 
@@ -85,38 +93,80 @@ def test_secrets_stay_local(tmp_path):
 
 
 def test_secrets_beat_gitignore_but_not_a_forced_line(tmp_path):
-    make_tree(tmp_path, {".gitignore": "!.env\n", ".nomacignore": "!ios/AuthKey.p8\n", ".env": "T=1", "ios/AuthKey.p8": KEY})
+    make_tree(
+        tmp_path,
+        {
+            ".gitignore": "!.env\n",
+            ".nomacignore": "!ios/AuthKey.p8\n",
+            ".env": "T=1",
+            "ios/AuthKey.p8": KEY,
+        },
+    )
     found = upload.scan(tmp_path)
     assert ".env" not in found.entries and found.secrets == [".env"]
     assert "ios/AuthKey.p8" in found.entries
 
 
 def test_secrets_already_left_out_are_not_reported(tmp_path):
-    make_tree(tmp_path, {".gitignore": ".env\n", ".nomacignore": "keys/\n", ".env": "T=1", "keys/a.p8": KEY})
+    make_tree(
+        tmp_path,
+        {
+            ".gitignore": ".env\n",
+            ".nomacignore": "keys/\n",
+            ".env": "T=1",
+            "keys/a.p8": KEY,
+        },
+    )
     assert upload.scan(tmp_path).secrets == []
 
 
 def test_delete_never_removes_secrets_from_the_mac(tmp_path):
     make_tree(tmp_path, {"server.key": KEY, "src/a.py": ""})
     found = upload.scan(tmp_path)
-    remote = {p: Entry("f", path=p) for p in (".env", "server.key", "AuthKey.p8", "old.py", "src/a.py")}
+    remote = {
+        p: Entry("f", path=p)
+        for p in (".env", "server.key", "AuthKey.p8", "old.py", "src/a.py")
+    }
     todo = upload.plan(found.entries, remote, found.filter, delete=True)
     assert todo.remove == ["old.py"]
 
 
 def test_prune_names_keep_folders_a_forced_path_needs():
-    assert upload.ProjectFilter(["!build/keep/"]).prune_names() == ["node_modules", "Pods", "DerivedData", ".build", ".git"]
+    assert upload.ProjectFilter(["!build/keep/"]).prune_names() == [
+        "node_modules",
+        "Pods",
+        "DerivedData",
+        ".build",
+        ".git",
+    ]
     assert upload.ProjectFilter([]).prune_names() == list(upload.DEFAULT_SKIPS)
     assert upload.ProjectFilter(["!*.keep"]).prune_names() == []  # could match anywhere
 
 
 def test_windows_takes_executable_bit_from_git_then_shebang(tmp_path, monkeypatch):
-    make_tree(tmp_path, {"build.sh": "#!/bin/sh\n", "tool": "binary", "notes.txt": "x", "new.sh": "#!/bin/sh\n"})
+    make_tree(
+        tmp_path,
+        {
+            "build.sh": "#!/bin/sh\n",
+            "tool": "binary",
+            "notes.txt": "x",
+            "new.sh": "#!/bin/sh\n",
+        },
+    )
     monkeypatch.setattr(upload.sys, "platform", "win32")
-    monkeypatch.setattr(upload, "_git_executables", lambda root: {"build.sh": False, "tool": True, "notes.txt": False})
+    monkeypatch.setattr(
+        upload,
+        "_git_executables",
+        lambda root: {"build.sh": False, "tool": True, "notes.txt": False},
+    )
     modes = {path: e.mode for path, e in upload.scan(tmp_path).entries.items()}
     # Git is authoritative for tracked files, even against a shebang; untracked files go by "#!".
-    assert modes == {"build.sh": 0o644, "tool": 0o755, "notes.txt": 0o644, "new.sh": 0o755}
+    assert modes == {
+        "build.sh": 0o644,
+        "tool": 0o755,
+        "notes.txt": 0o644,
+        "new.sh": 0o755,
+    }
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits")
@@ -126,7 +176,9 @@ def test_posix_keeps_permission_bits_and_symlinks(tmp_path):
     (tmp_path / "link").symlink_to("run.sh")
     entries = upload.scan(tmp_path).entries
     assert entries["run.sh"].mode == 0o750
-    assert entries["link"] == Entry("l", len("run.sh"), entries["link"].mtime, 0o777, "run.sh")
+    assert entries["link"] == Entry(
+        "l", len("run.sh"), entries["link"].mtime, 0o777, "run.sh"
+    )
 
 
 def manifest(*lines: tuple[str, str]) -> bytes:
@@ -204,8 +256,12 @@ def test_names_compare_in_nfc_but_delete_as_stored(tmp_path):
     make_tree(tmp_path, {nfc: "x"})
     local = upload.scan(tmp_path).entries
     st = (tmp_path / nfc).stat()
-    data = manifest((f"./{nfd}", f"{int(st.st_mtime)} 1 100644"), (f"./{gone_nfd}", "1 1 100644"))
-    todo = upload.plan(local, upload.parse_manifest(data), upload.ProjectFilter(), delete=True)
+    data = manifest(
+        (f"./{nfd}", f"{int(st.st_mtime)} 1 100644"), (f"./{gone_nfd}", "1 1 100644")
+    )
+    todo = upload.plan(
+        local, upload.parse_manifest(data), upload.ProjectFilter(), delete=True
+    )
     assert todo.upload == []
     assert todo.remove == [gone_nfd]
 
@@ -229,13 +285,20 @@ def test_write_tar_round_trip(tmp_path):
     with tarfile.open(fileobj=buf) as tar:
         members = {m.name: m for m in tar.getmembers()}
         assert members["src"].isdir()
-        assert (members["src/main.py"].mode, members["src/main.py"].mtime) == (0o755, 1700000000)
+        assert (members["src/main.py"].mode, members["src/main.py"].mtime) == (
+            0o755,
+            1700000000,
+        )
         assert tar.extractfile("src/main.py").read() == b"print('hi')\n"
         assert members["link"].issym() and members["link"].linkname == "src/main.py"
 
 
 def test_remote_script_prunes_default_skips():
-    script = upload.remote_script("/Users/agent/drive/src/My App", ["node_modules", "build"])
+    script = upload.remote_script(
+        "/Users/agent/drive/src/My App", ["node_modules", "build"]
+    )
     assert "cd -- '/Users/agent/drive/src/My App'" in script
-    assert "-type d \\( -name node_modules -o -name build \\) -prune -o -print0" in script
+    assert (
+        "-type d \\( -name node_modules -o -name build \\) -prune -o -print0" in script
+    )
     assert upload.remote_command("/x", []).startswith("/bin/sh -c ")

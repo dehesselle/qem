@@ -69,12 +69,16 @@ class DeviceLogin:
     def start(self, client_name: str | None = None) -> DeviceCode:
         """Ask for a code; the account owner approves it at `DeviceCode.url`."""
         name = client_name or f"qem on {socket.gethostname() or 'this computer'}"
-        body = self._transport.request("POST", "/device/start", json={"client_name": name}, auth=False)
+        body = self._transport.request(
+            "POST", "/device/start", json={"client_name": name}, auth=False
+        )
         device_code = body.get("device_code")
         user_code = body.get("user_code")
         url = body.get("verification_uri_complete") or body.get("verification_uri")
         if not (isinstance(device_code, str) and device_code and user_code and url):
-            raise LoginFailed("the login could not start: NoMac returned no device code")
+            raise LoginFailed(
+                "the login could not start: NoMac returned no device code"
+            )
         return DeviceCode(
             device_code=device_code,
             user_code=str(user_code),
@@ -97,13 +101,17 @@ class DeviceLogin:
         deadline = clock() + code.expires_in
         while True:
             if clock() + interval > deadline:
-                raise WaitTimeout(f"the login code was not approved within {code.expires_in} s")
+                raise WaitTimeout(
+                    f"the login code was not approved within {code.expires_in} s"
+                )
             sleep(interval)
             status, body = self._status(code.device_code)
             if status == "approved":
                 key = body.get("api_key")
                 if not isinstance(key, str) or not key:
-                    raise LoginFailed("the login was approved, but NoMac returned no API key")
+                    raise LoginFailed(
+                        "the login was approved, but NoMac returned no API key"
+                    )
                 return key
             if status == "slow_down":
                 interval += SLOW_DOWN_STEP
@@ -112,7 +120,9 @@ class DeviceLogin:
 
     def _status(self, device_code: str) -> tuple[str, dict]:
         try:
-            body = self._transport.request("POST", "/device/token", json={"device_code": device_code}, auth=False)
+            body = self._transport.request(
+                "POST", "/device/token", json={"device_code": device_code}, auth=False
+            )
         except ApiError as e:
             # RFC 8628 puts the code in a plain string: {"error": "slow_down"}.
             error = e.body.get("error")

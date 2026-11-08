@@ -21,8 +21,9 @@ writes. A file that can't carry a comment goes in `REUSE.toml` instead.
 
 ```sh
 uv run pytest
-uvx ruff check src tests    # ruff's default rules; the generated version.py is excluded
-uvx reuse lint              # every file has copyright and license information
+uvx --from 'ruff~=0.16.0' ruff format --check .
+uvx --from 'ruff~=0.16.0' ruff check .   # default rules; the generated version.py is excluded
+uvx reuse lint                           # every file has copyright and license information
 ```
 
 - None of the tests touch the real NoMac service. `QEM_HOME` points at a temporary

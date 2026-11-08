@@ -28,7 +28,9 @@ class NetworkError(NomacError):
 class ApiError(NomacError):
     """The API answered with an error envelope: {"error": {"code", "message"}}."""
 
-    def __init__(self, status: int, code: str, message: str, body: dict[str, Any] | None = None):
+    def __init__(
+        self, status: int, code: str, message: str, body: dict[str, Any] | None = None
+    ):
         super().__init__(f"{message} ({code})" if message else code)
         self.status = status
         self.code = code

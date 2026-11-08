@@ -4,10 +4,10 @@
 
 """Python library and CLI for NoMac cloud Macs (https://nomac.app).
 
-    from qem import Nomac
+from qem import Nomac
 
-    with Nomac() as nm, nm.start(max_duration=1800, max_cost=1) as mac:
-        print(mac.exec(["sw_vers"]).stdout)
+with Nomac() as nm, nm.start(max_duration=1800, max_cost=1) as mac:
+    print(mac.exec(["sw_vers"]).stdout)
 """
 
 from .client import Nomac

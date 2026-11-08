@@ -77,7 +77,11 @@ class SyncResult:
 
 
 def _patterns(lines: Iterable[str]) -> list:
-    return [p for p in pathspec.GitIgnoreSpec.from_lines(list(lines)).patterns if p.include is not None]
+    return [
+        p
+        for p in pathspec.GitIgnoreSpec.from_lines(list(lines)).patterns
+        if p.include is not None
+    ]
 
 
 def _match(patterns: Sequence, path: str) -> bool | None:
@@ -107,7 +111,11 @@ def _literal_dir(pattern: str) -> str:
         return ""  # a bare name matches at any depth
     glob = _GLOB.search(core)
     literal = core[: glob.start()] if glob else core
-    return literal.lstrip("/").rpartition("/")[0] + "/" if "/" in literal.lstrip("/") else ""
+    return (
+        literal.lstrip("/").rpartition("/")[0] + "/"
+        if "/" in literal.lstrip("/")
+        else ""
+    )
 
 
 class ProjectFilter:
@@ -134,7 +142,9 @@ class ProjectFilter:
         self._forced = _patterns(forced)
         self._skipped = _patterns(skipped)
         self._forced_dirs = [_literal_dir(p) for p in forced]
-        self._gitignores: dict[str, list] = {}  # folder ("" or "a/b/") -> its .gitignore
+        self._gitignores: dict[
+            str, list
+        ] = {}  # folder ("" or "a/b/") -> its .gitignore
         self._key_files: set[str] = set()
 
     def add_gitignore(self, folder: str, lines: Iterable[str]) -> None:
@@ -152,7 +162,9 @@ class ProjectFilter:
         return _match(self._forced, path) is True
 
     def may_contain_forced(self, folder: str) -> bool:
-        return any(d.startswith(folder) or folder.startswith(d) for d in self._forced_dirs)
+        return any(
+            d.startswith(folder) or folder.startswith(d) for d in self._forced_dirs
+        )
 
     def prune_names(self) -> list[str]:
         """Default skips the Mac can leave out of its listing (no forced path can lie inside)."""
@@ -190,9 +202,13 @@ class ProjectFilter:
 
 @dataclass
 class Scan:
-    entries: dict[str, Entry] = field(default_factory=dict)  # relative path (no trailing /) -> Entry
+    entries: dict[str, Entry] = field(
+        default_factory=dict
+    )  # relative path (no trailing /) -> Entry
     filter: ProjectFilter = field(default_factory=ProjectFilter)
-    secrets: list[str] = field(default_factory=list)  # left out as secrets (folders end in /)
+    secrets: list[str] = field(
+        default_factory=list
+    )  # left out as secrets (folders end in /)
 
 
 def _read_lines(path: Path) -> list[str]:
@@ -250,7 +266,9 @@ def scan(root: Path, *, detect_executables: bool = True) -> Scan:
         executable = tracked if tracked is not None else _has_shebang(full)
         return 0o755 if executable else 0o644
 
-    def visit(folder: Path, prefix: str, stored_prefix: str, inside_excluded: bool) -> None:
+    def visit(
+        folder: Path, prefix: str, stored_prefix: str, inside_excluded: bool
+    ) -> None:
         if (folder / GITIGNORE).is_file():
             filt.add_gitignore(prefix, _read_lines(folder / GITIGNORE))
         try:
@@ -268,17 +286,33 @@ def scan(root: Path, *, detect_executables: bool = True) -> Scan:
                 included = filt.forced(key)
             else:
                 forced = filt.forced(key)
-                if not forced and not is_dir and key.lower().endswith(KEY_SUFFIXES) and _holds_private_key(Path(item.path)):
+                if (
+                    not forced
+                    and not is_dir
+                    and key.lower().endswith(KEY_SUFFIXES)
+                    and _holds_private_key(Path(item.path))
+                ):
                     filt.add_key_file(key)
                 included = forced or not filt._excluded(key)
-                if not included and filt.secret(key) and not filt._excluded(key, secrets=False):
+                if (
+                    not included
+                    and filt.secret(key)
+                    and not filt._excluded(key, secrets=False)
+                ):
                     result.secrets.append(key)  # only these would have gone otherwise
             if is_dir:
                 if included:
                     st = item.stat(follow_symlinks=False)
                     mode = 0o755 if windows else stat.S_IMODE(st.st_mode)
-                    result.entries[path] = Entry("d", mtime=int(st.st_mtime), mode=mode, path=stored)
-                    visit(Path(item.path), key, stored + "/", inside_excluded and not filt.forced(key))
+                    result.entries[path] = Entry(
+                        "d", mtime=int(st.st_mtime), mode=mode, path=stored
+                    )
+                    visit(
+                        Path(item.path),
+                        key,
+                        stored + "/",
+                        inside_excluded and not filt.forced(key),
+                    )
                 elif filt.may_contain_forced(key):
                     visit(Path(item.path), key, stored + "/", True)
                 continue
@@ -286,11 +320,24 @@ def scan(root: Path, *, detect_executables: bool = True) -> Scan:
                 continue
             st = item.stat(follow_symlinks=False)
             if item.is_symlink():
-                target = os.readlink(item.path).replace("\\", "/") if windows else os.readlink(item.path)
-                result.entries[path] = Entry("l", len(os.fsencode(target)), int(st.st_mtime), 0o777, target, stored)
+                target = (
+                    os.readlink(item.path).replace("\\", "/")
+                    if windows
+                    else os.readlink(item.path)
+                )
+                result.entries[path] = Entry(
+                    "l",
+                    len(os.fsencode(target)),
+                    int(st.st_mtime),
+                    0o777,
+                    target,
+                    stored,
+                )
             elif item.is_file(follow_symlinks=False):
                 mode = file_mode(stored, Path(item.path), st)
-                result.entries[path] = Entry("f", st.st_size, int(st.st_mtime), mode, path=stored)
+                result.entries[path] = Entry(
+                    "f", st.st_size, int(st.st_mtime), mode, path=stored
+                )
 
     visit(root, "", "", False)
     return result
@@ -361,17 +408,29 @@ def parse_manifest(data: bytes) -> dict[str, Entry]:
         rest = body[cut + 2 :]
     lines = rest.decode("ascii").splitlines()
     if len(lines) != len(names):
-        raise TransferError("the project folder on the Mac changed while it was listed; sync again")
+        raise TransferError(
+            "the project folder on the Mac changed while it was listed; sync again"
+        )
     entries = {}
     for raw, line in zip(names, lines, strict=True):
         name = raw.decode("utf-8", "surrogateescape")
         parts = name.split("/")
-        if parts[0] != "." or len(parts) < 2 or any(p in ("", ".", "..") for p in parts[1:]):
+        if (
+            parts[0] != "."
+            or len(parts) < 2
+            or any(p in ("", ".", "..") for p in parts[1:])
+        ):
             raise TransferError(f"the Mac listed an unexpected path: {name!r}")
         mtime, size, mode = line.split()
         mode_bits = int(mode, 8)
         stored = "/".join(parts[1:])
-        entries[_nfc(stored)] = Entry(_kind(mode_bits), int(size), int(mtime), stat.S_IMODE(mode_bits), path=stored)
+        entries[_nfc(stored)] = Entry(
+            _kind(mode_bits),
+            int(size),
+            int(mtime),
+            stat.S_IMODE(mode_bits),
+            path=stored,
+        )
     return entries
 
 
@@ -384,13 +443,23 @@ class Plan:
 
 def _differs(mine: Entry, theirs: Entry) -> bool:
     if mine.kind == "f":
-        return (mine.size, mine.mtime, mine.mode) != (theirs.size, theirs.mtime, theirs.mode)
+        return (mine.size, mine.mtime, mine.mode) != (
+            theirs.size,
+            theirs.mtime,
+            theirs.mode,
+        )
     if mine.kind == "l":
         return mine.size != theirs.size
     return False
 
 
-def plan(local: Mapping[str, Entry], remote: Mapping[str, Entry], filt: ProjectFilter, *, delete: bool) -> Plan:
+def plan(
+    local: Mapping[str, Entry],
+    remote: Mapping[str, Entry],
+    filt: ProjectFilter,
+    *,
+    delete: bool,
+) -> Plan:
     """What to send and remove. Paths the filter leaves out are never removed from the Mac."""
     upload: list[str] = []
     remove: list[str] = []
@@ -398,13 +467,17 @@ def plan(local: Mapping[str, Entry], remote: Mapping[str, Entry], filt: ProjectF
     for path, mine in local.items():
         theirs = remote.get(path)
         if theirs is not None and theirs.kind != mine.kind:
-            remove.append(theirs.path or path)  # a file became a folder or the other way round
+            remove.append(
+                theirs.path or path
+            )  # a file became a folder or the other way round
             theirs = None
         if theirs is None or _differs(mine, theirs):
             upload.append(path)
     if delete:
         for path, theirs in remote.items():
-            if path in local or not filt.includes(path + "/" if theirs.kind == "d" else path):
+            if path in local or not filt.includes(
+                path + "/" if theirs.kind == "d" else path
+            ):
                 continue
             (rmdirs if theirs.kind == "d" else remove).append(theirs.path or path)
         rmdirs.sort(key=lambda p: p.count("/"), reverse=True)
@@ -419,7 +492,9 @@ def removal_request(todo: Plan) -> bytes:
     return out
 
 
-def write_tar(stream: IO[bytes], root: Path, entries: Mapping[str, Entry], paths: Sequence[str]) -> None:
+def write_tar(
+    stream: IO[bytes], root: Path, entries: Mapping[str, Entry], paths: Sequence[str]
+) -> None:
     with tarfile.open(fileobj=stream, mode="w|", format=tarfile.PAX_FORMAT) as tar:
         for path in paths:
             entry = entries[path]
@@ -440,7 +515,9 @@ def write_tar(stream: IO[bytes], root: Path, entries: Mapping[str, Entry], paths
                     with open(root / stored, "rb") as f:
                         tar.addfile(info, f)
                 except OSError as e:
-                    raise TransferError(f"cannot upload {path} (did it change during sync?): {e}") from e
+                    raise TransferError(
+                        f"cannot upload {path} (did it change during sync?): {e}"
+                    ) from e
 
 
 def read_manifest(stream: IO[bytes]) -> dict[str, Entry]:
@@ -453,14 +530,26 @@ def read_manifest(stream: IO[bytes]) -> dict[str, Entry]:
     return parse_manifest(data)
 
 
-def run(argv: list[str], env: Mapping[str, str], project: Path, remote: str, found: Scan, *, delete: bool) -> SyncResult:
+def run(
+    argv: list[str],
+    env: Mapping[str, str],
+    project: Path,
+    remote: str,
+    found: Scan,
+    *,
+    delete: bool,
+) -> SyncResult:
     """Run the ssh `argv` (which runs `remote_command`) and drive the exchange with the Mac."""
     with tempfile.TemporaryFile() as errors:
-        proc = subprocess.Popen(argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors)
+        proc = subprocess.Popen(
+            argv, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors
+        )
         failure: Exception | None = None
         todo = Plan([], [], [])
         try:
-            todo = plan(found.entries, read_manifest(proc.stdout), found.filter, delete=delete)
+            todo = plan(
+                found.entries, read_manifest(proc.stdout), found.filter, delete=delete
+            )
             proc.stdin.write(removal_request(todo))
             write_tar(proc.stdin, project, found.entries, todo.upload)
         except (TransferError, OSError) as e:
@@ -476,9 +565,15 @@ def run(argv: list[str], env: Mapping[str, str], project: Path, remote: str, fou
         detail = errors.read().decode(errors="replace").strip()
     if failure is None and returncode == 0:
         uploaded = sum(1 for p in todo.upload if found.entries[p].kind != "d")
-        return SyncResult(remote, uploaded, len(todo.remove) + len(todo.rmdirs), tuple(found.secrets))
+        return SyncResult(
+            remote, uploaded, len(todo.remove) + len(todo.rmdirs), tuple(found.secrets)
+        )
     # Report our own reason first; ssh's stderr explains a failed connection.
-    message = f"sync to {remote} failed: {failure}" if failure else f"sync to {remote} failed (exit code {returncode})"
+    message = (
+        f"sync to {remote} failed: {failure}"
+        if failure
+        else f"sync to {remote} failed (exit code {returncode})"
+    )
     if returncode != 0 and detail:
         message += f": {detail}"
     raise TransferError(message) from failure

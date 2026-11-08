@@ -26,9 +26,13 @@ def remote_name(local: Path) -> str:
     name, in NFC. Every shell use quotes it, so no character needs replacing."""
     name = unicodedata.normalize("NFC", local.resolve().name)
     if not name:
-        raise TransferError(f"{local} has no folder name: sync a folder, not a drive root")
+        raise TransferError(
+            f"{local} has no folder name: sync a folder, not a drive root"
+        )
     if len(name.encode("utf-8")) > 255:
-        raise TransferError(f"folder name too long for macOS (over 255 bytes): {name[:40]}...")
+        raise TransferError(
+            f"folder name too long for macOS (over 255 bytes): {name[:40]}..."
+        )
     return name
 
 

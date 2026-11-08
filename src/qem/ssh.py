@@ -90,7 +90,9 @@ def windows_session_id() -> int | None:
 
     kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
     session = ctypes.c_ulong()
-    if kernel32.ProcessIdToSessionId(kernel32.GetCurrentProcessId(), ctypes.byref(session)):
+    if kernel32.ProcessIdToSessionId(
+        kernel32.GetCurrentProcessId(), ctypes.byref(session)
+    ):
         return session.value
     return None
 
@@ -134,7 +136,11 @@ def choose_ssh() -> SshClient:
             return SshClient(found, "QEM_SSH")
         raise TransferError(f"QEM_SSH is {wanted!r}, but there is no such program")
     exe = shutil.which("ssh")
-    if sys.platform == "win32" and (exe is None or _is_windows_openssh(exe)) and windows_session_id() == 0:
+    if (
+        sys.platform == "win32"
+        and (exe is None or _is_windows_openssh(exe))
+        and windows_session_id() == 0
+    ):
         if git_ssh := _gits_ssh():
             return SshClient(git_ssh, "git")
     if not exe:
@@ -180,12 +186,17 @@ def generate_identity(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     argv = [keygen, "-q", "-t", "ed25519", "-N", "", "-C", "qem", "-f", str(path)]
     try:
-        result = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False
+        )
     except OSError as e:
         raise TransferError(f"ssh-keygen could not run: {e}") from e
     if result.returncode != 0 or not path.exists():
         detail = (result.stderr or result.stdout).strip()
-        raise TransferError(f"ssh-keygen failed (exit code {result.returncode})" + (f": {detail}" if detail else ""))
+        raise TransferError(
+            f"ssh-keygen failed (exit code {result.returncode})"
+            + (f": {detail}" if detail else "")
+        )
     if sys.platform == "win32":
         restrict_to_owner(path)
     return path
@@ -194,11 +205,17 @@ def generate_identity(path: Path) -> Path:
 def _current_user_sid() -> str:
     """The Windows SID of the user running qem, from `whoami /user`."""
     result = subprocess.run(
-        ["whoami", "/user", "/fo", "csv", "/nh"], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False
+        ["whoami", "/user", "/fo", "csv", "/nh"],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     fields = next(csv.reader([result.stdout.strip()]), [])
     if result.returncode != 0 or len(fields) < 2 or not fields[1].startswith("S-"):
-        raise TransferError(f"cannot find the current user's SID: {(result.stderr or result.stdout).strip()}")
+        raise TransferError(
+            f"cannot find the current user's SID: {(result.stderr or result.stdout).strip()}"
+        )
     return fields[1]
 
 
@@ -209,12 +226,21 @@ def restrict_to_owner(path: Path) -> None:
     ssh-keygen (Git Bash) adds an OWNER RIGHTS entry that counts as such.
     """
     # By SID: in an ssh session USERDOMAIN can be WORKGROUP, a name icacls cannot resolve.
-    for args in (["/reset"], ["/inheritance:r", "/grant:r", f"*{_current_user_sid()}:F"]):
+    for args in (
+        ["/reset"],
+        ["/inheritance:r", "/grant:r", f"*{_current_user_sid()}:F"],
+    ):
         result = subprocess.run(
-            ["icacls", str(path), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False
+            ["icacls", str(path), *args],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         if result.returncode != 0:
-            raise TransferError(f"icacls {' '.join(args)} failed: {(result.stderr or result.stdout).strip()}")
+            raise TransferError(
+                f"icacls {' '.join(args)} failed: {(result.stderr or result.stdout).strip()}"
+            )
 
 
 def known_hosts_path(session_id: str) -> Path:
@@ -309,7 +335,13 @@ def _settings(session_id: str) -> list[tuple[str, str]]:
     ]
 
 
-def ssh_options(session_id: str, identity: Path | None, *, batch: bool = True, multiplex: bool = True) -> list[str]:
+def ssh_options(
+    session_id: str,
+    identity: Path | None,
+    *,
+    batch: bool = True,
+    multiplex: bool = True,
+) -> list[str]:
     """ssh options (without the ssh executable) that reach the Mac through the tunnel.
 
     Requirements:
@@ -364,11 +396,19 @@ def ssh_argv(
         raise TransferError("a port forward runs no command")
     # A forward gets a connection of its own: in a shared master the port would
     # stay open after this ssh ends, and a busy port would not fail this ssh.
-    options = ssh_options(session_id, identity, batch=command is not None, multiplex=forward is None)
+    options = ssh_options(
+        session_id, identity, batch=command is not None, multiplex=forward is None
+    )
     argv = [find_ssh(), *options]
     if forward is not None:
         local, remote = forward
-        argv += ["-o", "ExitOnForwardFailure=yes", "-N", "-L", f"127.0.0.1:{local}:127.0.0.1:{remote}"]
+        argv += [
+            "-o",
+            "ExitOnForwardFailure=yes",
+            "-N",
+            "-L",
+            f"127.0.0.1:{local}:127.0.0.1:{remote}",
+        ]
     argv.append(target(session_id))
     if command is not None:
         argv.append(command if isinstance(command, str) else shlex.join(command))
@@ -383,5 +423,8 @@ def ssh_config_block(name: str, session_id: str, identity: Path | None) -> str:
     lines = [f"Host {name}", f"    User {USERNAME}"]
     lines += [f"    {keyword} {value}" for keyword, value in _settings(session_id)]
     if identity:
-        lines += [f"    IdentityFile {_value(_path(identity))}", "    IdentitiesOnly yes"]
+        lines += [
+            f"    IdentityFile {_value(_path(identity))}",
+            "    IdentitiesOnly yes",
+        ]
     return "\n".join(lines) + "\n"

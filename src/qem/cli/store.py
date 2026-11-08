@@ -64,7 +64,9 @@ class ProjectStore:
         if data is None:
             return None
         recorded = data.get("project")
-        if isinstance(recorded, str) and os.path.normcase(recorded) != os.path.normcase(str(self.project)):
+        if isinstance(recorded, str) and os.path.normcase(recorded) != os.path.normcase(
+            str(self.project)
+        ):
             return None  # a record that belongs to another folder
         return data
 
@@ -89,7 +91,9 @@ def find_identity(session_id: str) -> str | None:
     """The key path a session was started with, from whichever project's record has it."""
     for path in sorted(sessions_root().glob("*.json")):
         data = _read(path)
-        identity = data.get("identity") if data and data.get("id") == session_id else None
+        identity = (
+            data.get("identity") if data and data.get("id") == session_id else None
+        )
         if isinstance(identity, str) and identity and Path(identity).is_file():
             return identity
     return None

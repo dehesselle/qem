@@ -65,7 +65,10 @@ def find_viewer() -> str | None:
     if found := shutil.which("vncviewer"):
         return found
     if sys.platform == "win32":
-        for root in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
+        for root in (
+            os.environ.get("ProgramFiles"),
+            os.environ.get("ProgramFiles(x86)"),
+        ):
             if root and (exe := Path(root) / "TigerVNC" / "vncviewer.exe").is_file():
                 return str(exe)
     return None
@@ -149,7 +152,11 @@ def open_tunnel(
     with tempfile.TemporaryFile() as errors:
         try:
             process = subprocess.Popen(
-                argv, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=errors
+                argv,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=errors,
             )
         except OSError as e:
             raise TransferError(f"ssh could not start: {e}") from e

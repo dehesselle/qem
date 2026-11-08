@@ -22,7 +22,11 @@ def fixed_tools(monkeypatch):
 
 
 def option(argv: list[str], name: str) -> str:
-    values = [argv[i + 1] for i, a in enumerate(argv[:-1]) if a == "-o" and argv[i + 1].startswith(name + "=")]
+    values = [
+        argv[i + 1]
+        for i, a in enumerate(argv[:-1])
+        if a == "-o" and argv[i + 1].startswith(name + "=")
+    ]
     assert len(values) == 1, name
     return values[0].split("=", 1)[1]
 
@@ -39,7 +43,11 @@ def test_ssh_argv_pins_host_and_uses_tunnel(isolated_home):
     assert option(argv, "ClearAllForwardings") == "yes"
     assert option(argv, "ForwardAgent") == "no"
     assert option(argv, "UserKnownHostsFile").endswith("known_hosts/ses_1")
-    assert int(option(argv, "ServerAliveInterval")) * int(option(argv, "ServerAliveCountMax")) >= 60
+    assert (
+        int(option(argv, "ServerAliveInterval"))
+        * int(option(argv, "ServerAliveCountMax"))
+        >= 60
+    )
     assert argv[-2:] == ["agent@qem-ses_1", "ls -la 'my dir'"]
     assert argv[argv.index("-i") + 1] == ssh._path(Path("/k/id"))
     assert option(argv, "IdentitiesOnly") == "yes"
@@ -63,7 +71,9 @@ def test_forward_runs_no_command(isolated_home):
         ssh.ssh_argv("ses_1", None, "ls", forward=(8080, 3000))
 
 
-@pytest.mark.parametrize("session_id", ["", "../x", "a b", "-oProxyCommand=x", "ses;rm"])
+@pytest.mark.parametrize(
+    "session_id", ["", "../x", "a b", "-oProxyCommand=x", "ses;rm"]
+)
 def test_unusable_session_ids_are_refused(session_id):
     with pytest.raises(TransferError):
         ssh.host_alias(session_id)
@@ -91,10 +101,14 @@ def test_multiplexing_off_windows(short_home, monkeypatch):
     assert other != path  # one shared connection per Mac
 
     # a forward lives and dies with its own ssh
-    assert not any(a.startswith("Control") for a in ssh.ssh_argv("ses_1", None, forward=(1, 2)))
+    assert not any(
+        a.startswith("Control") for a in ssh.ssh_argv("ses_1", None, forward=(1, 2))
+    )
 
 
-def test_no_multiplexing_on_windows_or_with_a_long_path(short_home, monkeypatch, tmp_path):
+def test_no_multiplexing_on_windows_or_with_a_long_path(
+    short_home, monkeypatch, tmp_path
+):
     monkeypatch.setattr(sys, "platform", "win32")
     assert not any(a.startswith("Control") for a in ssh.ssh_argv("ses_1", None, "true"))
 
@@ -106,7 +120,10 @@ def test_no_multiplexing_on_windows_or_with_a_long_path(short_home, monkeypatch,
 def test_paths_with_spaces_are_quoted(monkeypatch, tmp_path):
     monkeypatch.setenv("QEM_HOME", str(tmp_path / "my home"))
     argv = ssh.ssh_argv("ses_1", None, "true")
-    assert option(argv, "UserKnownHostsFile") == f'"{ssh._path(tmp_path / "my home" / "known_hosts" / "ses_1")}"'
+    assert (
+        option(argv, "UserKnownHostsFile")
+        == f'"{ssh._path(tmp_path / "my home" / "known_hosts" / "ses_1")}"'
+    )
 
 
 def test_proxy_command_escapes_percent(monkeypatch):
@@ -119,16 +136,26 @@ def test_ssh_config_block(isolated_home):
     assert block.startswith("Host nomac\n") and block.endswith("\n")
     lines = block.splitlines()
     assert all(line.startswith("    ") for line in lines[1:])
-    for line in ("HostKeyAlias qem-ses_1", "User agent", "IdentitiesOnly yes", "StrictHostKeyChecking yes",
-                 f"IdentityFile {ssh._path(Path('/k/id'))}",
-                 f"UserKnownHostsFile {ssh._path(isolated_home / 'known_hosts' / 'ses_1')}"):
+    for line in (
+        "HostKeyAlias qem-ses_1",
+        "User agent",
+        "IdentitiesOnly yes",
+        "StrictHostKeyChecking yes",
+        f"IdentityFile {ssh._path(Path('/k/id'))}",
+        f"UserKnownHostsFile {ssh._path(isolated_home / 'known_hosts' / 'ses_1')}",
+    ):
         assert f"    {line}" in lines, line
-    assert any(line.startswith("    ProxyCommand ") and line.endswith(" -m qem proxy ses_1") for line in lines)
+    assert any(
+        line.startswith("    ProxyCommand ") and line.endswith(" -m qem proxy ses_1")
+        for line in lines
+    )
     assert any(line.startswith("    ServerAliveInterval ") for line in lines)
     assert "IdentityFile" not in ssh.ssh_config_block("nomac", "ses_1", None)
 
 
-needs_keygen = pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="no ssh-keygen")
+needs_keygen = pytest.mark.skipif(
+    not shutil.which("ssh-keygen"), reason="no ssh-keygen"
+)
 
 
 @needs_keygen
@@ -161,7 +188,7 @@ def test_generate_identity_reports_keygen_errors(isolated_home, monkeypatch, tmp
         ssh.generate_identity(isolated_home / "keys" / "id_test")
 
 
-@pytest.mark.parametrize("name", ["My App", ".hidden", "Über's \"app\"", "x" * 120])
+@pytest.mark.parametrize("name", ["My App", ".hidden", 'Über\'s "app"', "x" * 120])
 def test_remote_name_is_the_folder_name(tmp_path, name):
     if os.name == "nt" and '"' in name:
         name = name.replace('"', "")  # not allowed in Windows file names
@@ -184,9 +211,9 @@ def test_remote_name_refuses_what_macos_cannot_hold(tmp_path):
 
 
 def test_remote_path_with_odd_characters_stays_one_shell_word():
-    remote = transfer.resolve_remote("build/App.ipa", "Über's \"app\" $(x)")
+    remote = transfer.resolve_remote("build/App.ipa", 'Über\'s "app" $(x)')
     command = transfer.pull_command(remote)
-    assert shlex.split(command)[2] == "/Users/agent/drive/src/Über's \"app\" $(x)/build"
+    assert shlex.split(command)[2] == '/Users/agent/drive/src/Über\'s "app" $(x)/build'
 
 
 def test_resolve_remote():
@@ -198,9 +225,15 @@ def test_resolve_remote():
 @pytest.mark.parametrize(
     "remote, command",
     [
-        ("/Users/agent/drive/src/App/build/", "cd -- /Users/agent/drive/src/App && COPYFILE_DISABLE=1 exec tar -cf - -- build"),
-        ("~/Library/My Logs", "cd -- \"$HOME\"/Library && COPYFILE_DISABLE=1 exec tar -cf - -- 'My Logs'"),
-        ("~/x.txt", "cd -- \"$HOME\" && COPYFILE_DISABLE=1 exec tar -cf - -- x.txt"),
+        (
+            "/Users/agent/drive/src/App/build/",
+            "cd -- /Users/agent/drive/src/App && COPYFILE_DISABLE=1 exec tar -cf - -- build",
+        ),
+        (
+            "~/Library/My Logs",
+            "cd -- \"$HOME\"/Library && COPYFILE_DISABLE=1 exec tar -cf - -- 'My Logs'",
+        ),
+        ("~/x.txt", 'cd -- "$HOME" && COPYFILE_DISABLE=1 exec tar -cf - -- x.txt'),
     ],
 )
 def test_pull_command(remote, command):

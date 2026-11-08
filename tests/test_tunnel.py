@@ -39,7 +39,9 @@ def gateway():
         server.shutdown()
 
 
-def run_tunnel(gateway_url: str, session_id: str = "ses_1", stdin: bytes = b"") -> subprocess.CompletedProcess:
+def run_tunnel(
+    gateway_url: str, session_id: str = "ses_1", stdin: bytes = b""
+) -> subprocess.CompletedProcess:
     env = {
         **os.environ,
         "QEM_TUNNEL_SESSION": session_id,
@@ -47,7 +49,12 @@ def run_tunnel(gateway_url: str, session_id: str = "ses_1", stdin: bytes = b"") 
         "QEM_TUNNEL_TOKEN": TOKEN,
     }
     return subprocess.run(
-        [sys.executable, "-m", "qem", "proxy", session_id], input=stdin, capture_output=True, env=env, timeout=30, check=False
+        [sys.executable, "-m", "qem", "proxy", session_id],
+        input=stdin,
+        capture_output=True,
+        env=env,
+        timeout=30,
+        check=False,
     )
 
 
@@ -58,7 +65,12 @@ def test_bytes_pass_through(gateway):
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env={**os.environ, "QEM_TUNNEL_SESSION": "ses_1", "QEM_TUNNEL_GATEWAY": url, "QEM_TUNNEL_TOKEN": TOKEN},
+        env={
+            **os.environ,
+            "QEM_TUNNEL_SESSION": "ses_1",
+            "QEM_TUNNEL_GATEWAY": url,
+            "QEM_TUNNEL_TOKEN": TOKEN,
+        },
     )
     payload = bytes(range(256)) * 4  # every byte value, incl. \r\n and \x1a
     proc.stdin.write(payload)
@@ -69,8 +81,12 @@ def test_bytes_pass_through(gateway):
     proc.stdin.close()
     assert proc.wait(timeout=15) == 0, proc.stderr.read()
     assert received == payload[::-1]
-    assert seen == {"path": "/api/v1/mac/sessions/ses_1/ssh", "auth": f"Bearer {TOKEN}", "agent": "qem",
-                    "extensions": None}  # no compression offered
+    assert seen == {
+        "path": "/api/v1/mac/sessions/ses_1/ssh",
+        "auth": f"Bearer {TOKEN}",
+        "agent": "qem",
+        "extensions": None,
+    }  # no compression offered
 
 
 def test_unreachable_gateway_fails_cleanly():
@@ -90,7 +106,14 @@ def test_refused_handshake_fails_cleanly():
     with serve(lambda ws: None, "127.0.0.1", 0, process_request=refuse) as server:
         threading.Thread(target=server.serve_forever, daemon=True).start()
         url = f"http://127.0.0.1:{server.socket.getsockname()[1]}"
-        access = Access(session_id="ses_1", generation=0, username="agent", host_key="", gateway=url, token=TOKEN)
+        access = Access(
+            session_id="ses_1",
+            generation=0,
+            username="agent",
+            host_key="",
+            gateway=url,
+            token=TOKEN,
+        )
         with pytest.raises(TunnelError, match="refused the tunnel: HTTP 401") as exc:
             open_tunnel(access, open_timeout=10)
         assert TOKEN not in str(exc.value)
@@ -129,7 +152,10 @@ def test_gateway_must_be_https_origin(gateway):
     [
         ("https://gw.nomac.app", "wss://gw.nomac.app/api/v1/mac/sessions/ses_1/ssh"),
         ("https://gw.nomac.app/", "wss://gw.nomac.app/api/v1/mac/sessions/ses_1/ssh"),
-        ("https://gw.nomac.app:8443", "wss://gw.nomac.app:8443/api/v1/mac/sessions/ses_1/ssh"),
+        (
+            "https://gw.nomac.app:8443",
+            "wss://gw.nomac.app:8443/api/v1/mac/sessions/ses_1/ssh",
+        ),
         ("wss://gw.nomac.app", "wss://gw.nomac.app/api/v1/mac/sessions/ses_1/ssh"),
         ("http://127.0.0.1:9000", "ws://127.0.0.1:9000/api/v1/mac/sessions/ses_1/ssh"),
         ("http://localhost:9000", "ws://localhost:9000/api/v1/mac/sessions/ses_1/ssh"),

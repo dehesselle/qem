@@ -78,7 +78,9 @@ class MacSession:
         info = self.refresh()
         while info.state in STARTING_STATES:
             if self._clock() >= deadline:
-                raise WaitTimeout(f"session {self.id} still {info.state} after {timeout:.0f} s")
+                raise WaitTimeout(
+                    f"session {self.id} still {info.state} after {timeout:.0f} s"
+                )
             self._sleep(interval)
             info = self.refresh()
         if not info.ready:
@@ -146,7 +148,11 @@ class MacSession:
         return job
 
     def job(self, job_id: str, wait: float = 0) -> Job:
-        return Job.from_json(self._request("GET", f"/jobs/{job_id}", params={"wait": int(min(wait, MAX_WAIT))}))
+        return Job.from_json(
+            self._request(
+                "GET", f"/jobs/{job_id}", params={"wait": int(min(wait, MAX_WAIT))}
+            )
+        )
 
     def wait_job(self, job_id: str, timeout: float) -> Job:
         """Long-poll until the job is no longer running or `timeout` s passed."""
@@ -159,11 +165,17 @@ class MacSession:
     def cancel(self, job_id: str) -> Job:
         return Job.from_json(self._request("POST", f"/jobs/{job_id}/cancel"))
 
-    def output(self, job_id: str, stream: str = "stdout", cursor: int = 0) -> OutputChunk:
-        body = self._request("GET", f"/jobs/{job_id}/output", params={"stream": stream, "cursor": cursor})
+    def output(
+        self, job_id: str, stream: str = "stdout", cursor: int = 0
+    ) -> OutputChunk:
+        body = self._request(
+            "GET", f"/jobs/{job_id}/output", params={"stream": stream, "cursor": cursor}
+        )
         return OutputChunk.from_json(body, cursor)
 
-    def iter_output(self, job_id: str, stream: str = "stdout", cursor: int = 0) -> Iterator[OutputChunk]:
+    def iter_output(
+        self, job_id: str, stream: str = "stdout", cursor: int = 0
+    ) -> Iterator[OutputChunk]:
         """Read a stream from `cursor` to its current end.
 
         When the executor dropped the middle of a huge output, the last chunk
@@ -196,7 +208,10 @@ class MacSession:
         return {**tunnel_env(access), **ssh_mod.ssh_env()}
 
     def ssh_argv(
-        self, command: str | Sequence[str] | None = None, *, forward: tuple[int, int] | None = None
+        self,
+        command: str | Sequence[str] | None = None,
+        *,
+        forward: tuple[int, int] | None = None,
     ) -> list[str]:
         return ssh_mod.ssh_argv(self.id, self.identity, command, forward=forward)
 
@@ -209,13 +224,21 @@ class MacSession:
     ) -> subprocess.CompletedProcess:
         """Run ssh (interactive when command is None), inheriting the terminal unless capture."""
         env = {**os.environ, **self.prepare_ssh()}
-        return subprocess.run(self.ssh_argv(command, forward=forward), env=env, capture_output=capture, text=capture, check=False)
+        return subprocess.run(
+            self.ssh_argv(command, forward=forward),
+            env=env,
+            capture_output=capture,
+            text=capture,
+            check=False,
+        )
 
     def password(self) -> Login:
         """The Mac's login (user agent) for this session. Screen Sharing accepts it too."""
         return Login.from_json(self._request("GET", "/password"))
 
-    def desktop_tunnel(self, port: int | None = None, *, timeout: float = 20) -> vnc.DesktopTunnel:
+    def desktop_tunnel(
+        self, port: int | None = None, *, timeout: float = 20
+    ) -> vnc.DesktopTunnel:
         """Forward 127.0.0.1:`port` (default: a free one) to the Mac's Screen Sharing.
 
         Returns once a VNC viewer can connect there, signed in with password().
@@ -224,9 +247,13 @@ class MacSession:
         env = {**os.environ, **self.prepare_ssh()}
         port = port or vnc.free_port()
         argv = self.ssh_argv(forward=(port, vnc.SCREEN_SHARING_PORT))
-        return vnc.open_tunnel(argv, env, port, timeout=timeout, sleep=self._sleep, clock=self._clock)
+        return vnc.open_tunnel(
+            argv, env, port, timeout=timeout, sleep=self._sleep, clock=self._clock
+        )
 
-    def sync(self, local: str | Path = ".", *, name: str | None = None, delete: bool = False) -> upload.SyncResult:
+    def sync(
+        self, local: str | Path = ".", *, name: str | None = None, delete: bool = False
+    ) -> upload.SyncResult:
         """Upload a project folder to ~/drive/src/<name> on the Mac, sending only what changed.
 
         With `delete`, files on the Mac that are gone locally are removed too,
@@ -242,7 +269,12 @@ class MacSession:
         return upload.run(argv, env, project, remote, found, delete=delete)
 
     def pull(
-        self, remote: str, local: str | Path = ".", *, project: str | None = None, overwrite: bool = False
+        self,
+        remote: str,
+        local: str | Path = ".",
+        *,
+        project: str | None = None,
+        overwrite: bool = False,
     ) -> transfer.PullResult:
         """Download a Mac file or folder into a local folder, keeping existing files unless overwrite.
 
@@ -251,11 +283,19 @@ class MacSession:
         """
         dest = Path(local).resolve()
         dest.mkdir(parents=True, exist_ok=True)
-        source = transfer.resolve_remote(remote, project or transfer.remote_name(Path.cwd()))
+        source = transfer.resolve_remote(
+            remote, project or transfer.remote_name(Path.cwd())
+        )
         env = {**os.environ, **self.prepare_ssh()}
         argv = self.ssh_argv(transfer.pull_command(source))
         with tempfile.TemporaryFile() as errors:
-            proc = subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=errors)
+            proc = subprocess.Popen(
+                argv,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=errors,
+            )
             try:
                 written, kept = transfer.extract(proc.stdout, dest, overwrite=overwrite)
                 failure = None
@@ -267,7 +307,10 @@ class MacSession:
             errors.seek(0)
             detail = errors.read().decode(errors="replace").strip()
         if returncode != 0:
-            raise TransferError(f"pull of {source} failed (exit code {returncode})" + (f": {detail}" if detail else ""))
+            raise TransferError(
+                f"pull of {source} failed (exit code {returncode})"
+                + (f": {detail}" if detail else "")
+            )
         if failure:
             raise TransferError(f"pull of {source} failed: {failure}")
         return transfer.PullResult(dest, written, kept)
