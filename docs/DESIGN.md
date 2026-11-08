@@ -44,6 +44,10 @@ Files move as tar streams over that ssh. Neither direction uses rsync.
   Files are compared by type, size, whole-second modification time and permission bits.
   `upload.ProjectFilter` holds the skip rules. It decides for local files and for paths
   that exist only on the Mac, so `--delete` never removes what the rules leave out.
+  Secrets (`upload.SECRETS`) rank above `.gitignore`, so a project's own rules cannot
+  send them; only a `!` line in `.nomacignore` can. `.pem` and `.key` files count as
+  secrets only when their first 64 KiB hold a private key, so certificates and Keynote
+  documents still go. Names match in any case, as on Windows' and macOS's file systems.
 
 qem does not use rsync because Windows has no rsync that just works:
 

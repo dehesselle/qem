@@ -57,6 +57,49 @@ def test_filter_decides_for_paths_that_exist_only_on_the_mac(tmp_path):
         assert not filt.includes(left_out), left_out
 
 
+KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaA==\n-----END OPENSSH PRIVATE KEY-----\n"
+CERT = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
+
+
+def test_secrets_stay_local(tmp_path):
+    make_tree(tmp_path, {
+        ".env": "TOKEN=1", ".env.local": "TOKEN=2", ".env.example": "TOKEN=",
+        "ios/AuthKey_ABC.p8": KEY, "ios/dist.P12": "p12", "android/release.jks": "jks",
+        "deploy/id_ed25519": KEY, "deploy/id_ed25519.pub": "ssh-ed25519 AAAA",
+        "certs/ca.pem": CERT, "certs/server.pem": CERT + KEY, "certs/server.key": KEY,
+        "Slides.key": "PK\x03\x04 not a key",  # a Keynote document
+        "src/main.py": "print('hi')\n",
+    })  # fmt: skip
+    found = upload.scan(tmp_path)
+    assert sorted(p for p, e in found.entries.items() if e.kind == "f") == [
+        ".env.example", "Slides.key", "certs/ca.pem", "deploy/id_ed25519.pub", "src/main.py",
+    ]  # fmt: skip
+    assert sorted(found.secrets) == [
+        ".env", ".env.local", "android/release.jks", "certs/server.key", "certs/server.pem",
+        "deploy/id_ed25519", "ios/AuthKey_ABC.p8", "ios/dist.P12",
+    ]  # fmt: skip
+
+
+def test_secrets_beat_gitignore_but_not_a_forced_line(tmp_path):
+    make_tree(tmp_path, {".gitignore": "!.env\n", ".nomacignore": "!ios/AuthKey.p8\n", ".env": "T=1", "ios/AuthKey.p8": KEY})
+    found = upload.scan(tmp_path)
+    assert ".env" not in found.entries and found.secrets == [".env"]
+    assert "ios/AuthKey.p8" in found.entries
+
+
+def test_secrets_already_left_out_are_not_reported(tmp_path):
+    make_tree(tmp_path, {".gitignore": ".env\n", ".nomacignore": "keys/\n", ".env": "T=1", "keys/a.p8": KEY})
+    assert upload.scan(tmp_path).secrets == []
+
+
+def test_delete_never_removes_secrets_from_the_mac(tmp_path):
+    make_tree(tmp_path, {"server.key": KEY, "src/a.py": ""})
+    found = upload.scan(tmp_path)
+    remote = {p: Entry("f", path=p) for p in (".env", "server.key", "AuthKey.p8", "old.py", "src/a.py")}
+    todo = upload.plan(found.entries, remote, found.filter, delete=True)
+    assert todo.remove == ["old.py"]
+
+
 def test_prune_names_keep_folders_a_forced_path_needs():
     assert upload.ProjectFilter(["!build/keep/"]).prune_names() == ["node_modules", "Pods", "DerivedData", ".build", ".git"]
     assert upload.ProjectFilter([]).prune_names() == list(upload.DEFAULT_SKIPS)

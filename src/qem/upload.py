@@ -27,6 +27,18 @@ import pathspec
 from .errors import TransferError
 
 DEFAULT_SKIPS = ("node_modules", "Pods", "DerivedData", ".build", "build", ".git")
+# Secrets stay on this computer unless a `!` line in .nomacignore sends them.
+# .gitignore syntax; the `!` lines spare the usual committed templates.
+SECRETS = (
+    ".env", ".env.*", "!.env.example", "!.env.sample", "!.env.template",
+    "*.p8", "*.p12", "*.pfx", "*.keystore", "*.jks", "*.ppk",
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "id_ecdsa_sk", "id_ed25519_sk",
+)  # fmt: skip
+# Files with these suffixes are secrets only when they hold a private key, so
+# certificates and Keynote documents still go.
+KEY_SUFFIXES = (".pem", ".key")
+_KEY_MARK = b"PRIVATE KEY-----"
+_KEY_READ = 64 * 1024  # a certificate chain can come before the key
 NOMACIGNORE = ".nomacignore"
 GITIGNORE = ".gitignore"
 BEGIN = b"qem-manifest\n"
@@ -57,6 +69,7 @@ class SyncResult:
     remote: str  # project folder on the Mac
     uploaded: int  # files and symlinks sent
     deleted: int  # paths removed on the Mac
+    kept_local: tuple[str, ...] = ()  # secrets that were not sent (see SECRETS)
 
 
 def _patterns(lines: Iterable[str]) -> list:
@@ -70,6 +83,17 @@ def _match(patterns: Sequence, path: str) -> bool | None:
         if pattern.regex.match(path):
             result = pattern.include
     return result
+
+
+_SECRET_PATTERNS = _patterns(SECRETS)
+
+
+def _holds_private_key(path: Path) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return _KEY_MARK in f.read(_KEY_READ)
+    except OSError:
+        return False
 
 
 def _literal_dir(pattern: str) -> str:
@@ -87,7 +111,8 @@ class ProjectFilter:
 
     Paths are relative and '/'-separated, and folders end in '/'. The rules,
     strongest first: `!pattern` lines in .nomacignore force paths in; other
-    .nomacignore lines leave paths out; then the default skips and every
+    .nomacignore lines leave paths out; secrets (SECRETS, and key files that
+    `scan` found by content) stay out; then the default skips and every
     .gitignore in the project. All patterns use .gitignore syntax.
     """
 
@@ -106,9 +131,18 @@ class ProjectFilter:
         self._skipped = _patterns(skipped)
         self._forced_dirs = [_literal_dir(p) for p in forced]
         self._gitignores: dict[str, list] = {}  # folder ("" or "a/b/") -> its .gitignore
+        self._key_files: set[str] = set()
 
     def add_gitignore(self, folder: str, lines: Iterable[str]) -> None:
         self._gitignores[folder] = _patterns(lines)
+
+    def add_key_file(self, path: str) -> None:
+        """A file that holds a private key: it stays local and is never removed from the Mac."""
+        self._key_files.add(path)
+
+    def secret(self, path: str) -> bool:
+        # Any case: Windows and macOS file systems ignore it, so `.P12` is a `.p12`.
+        return path in self._key_files or _match(_SECRET_PATTERNS, path.lower()) is True
 
     def forced(self, path: str) -> bool:
         return _match(self._forced, path) is True
@@ -123,9 +157,9 @@ class ProjectFilter:
         needed = {part for d in self._forced_dirs for part in d.split("/")}
         return [name for name in DEFAULT_SKIPS if name not in needed]
 
-    def _excluded(self, path: str) -> bool:
+    def _excluded(self, path: str, *, secrets: bool = True) -> bool:
         """The rules for `path` itself, ignoring its parent folders."""
-        if _match(self._skipped, path):
+        if _match(self._skipped, path) or (secrets and self.secret(path)):
             return True
         if path.endswith("/") and path.rstrip("/").rpartition("/")[2] in DEFAULT_SKIPS:
             return True
@@ -154,6 +188,7 @@ class ProjectFilter:
 class Scan:
     entries: dict[str, Entry] = field(default_factory=dict)  # relative path (no trailing /) -> Entry
     filter: ProjectFilter = field(default_factory=ProjectFilter)
+    secrets: list[str] = field(default_factory=list)  # left out as secrets (folders end in /)
 
 
 def _read_lines(path: Path) -> list[str]:
@@ -228,7 +263,12 @@ def scan(root: Path, *, detect_executables: bool = True) -> Scan:
             if inside_excluded:
                 included = filt.forced(key)
             else:
-                included = filt.forced(key) or not filt._excluded(key)
+                forced = filt.forced(key)
+                if not forced and not is_dir and key.lower().endswith(KEY_SUFFIXES) and _holds_private_key(Path(item.path)):
+                    filt.add_key_file(key)
+                included = forced or not filt._excluded(key)
+                if not included and filt.secret(key) and not filt._excluded(key, secrets=False):
+                    result.secrets.append(key)  # only these would have gone otherwise
             if is_dir:
                 if included:
                     st = item.stat(follow_symlinks=False)
@@ -432,7 +472,7 @@ def run(argv: list[str], env: Mapping[str, str], project: Path, remote: str, fou
         detail = errors.read().decode(errors="replace").strip()
     if failure is None and returncode == 0:
         uploaded = sum(1 for p in todo.upload if found.entries[p].kind != "d")
-        return SyncResult(remote, uploaded, len(todo.remove) + len(todo.rmdirs))
+        return SyncResult(remote, uploaded, len(todo.remove) + len(todo.rmdirs), tuple(found.secrets))
     # Report our own reason first; ssh's stderr explains a failed connection.
     message = f"sync to {remote} failed: {failure}" if failure else f"sync to {remote} failed (exit code {returncode})"
     if returncode != 0 and detail:

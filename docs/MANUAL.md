@@ -143,9 +143,19 @@ qem pull [LOCAL] --from REMOTE [--overwrite]
 - **What it skips:**
   - `node_modules`, `Pods`, `DerivedData`, `.build`, `build` and `.git` folders
   - everything that `.gitignore` files in the project leave out
+  - secrets, even where a `.gitignore` lets them in. qem's list:
+    - `.env` and `.env.*`, except `.env.example`, `.env.sample` and `.env.template`
+    - signing keys and keystores: `*.p8`, `*.p12`, `*.pfx`, `*.keystore`, `*.jks`
+    - private keys: `*.ppk` and `id_rsa`, `id_ed25519` and the other ssh key names
+      (their `.pub` files go)
+    - `.pem` and `.key` files that hold a `PRIVATE KEY` block (certificates and Keynote
+      files go)
+
+    Names match in any case. `sync` lists the secrets it kept back on stderr when they
+    would otherwise have gone. `--delete` never removes them from the Mac.
 - **`.nomacignore`:** a file in the project's top folder, using `.gitignore` syntax.
-  - `!pattern` lines force paths back in, even inside a skipped folder. For example,
-    `!build/keep/` sends that one folder.
+  - `!pattern` lines force paths back in, even inside a skipped folder, and secrets
+    too. For example, `!build/keep/` sends that one folder.
   - Other lines skip more paths.
 - **`--delete`:** removes files and folders on the Mac that are gone locally. Paths the
   skip rules leave out are never removed, so build output the Mac made itself stays.
@@ -195,7 +205,7 @@ try:
         job = mac.wait_job(job.id, timeout=600)
     print(job.exit_code, job.stdout)
 
-    synced = mac.sync("./MyApp", delete=True)    # -> SyncResult(remote, uploaded, deleted)
+    synced = mac.sync("./MyApp", delete=True)    # -> SyncResult(remote, uploaded, deleted, kept_local)
     mac.ssh(["ls", "-la", synced.remote])        # remote: "/Users/agent/drive/src/MyApp"
     out = mac.ssh("uname -a", capture=True).stdout
     result = mac.pull("build/App.ipa", "./out", project="MyApp")   # -> PullResult(dest, written, kept)

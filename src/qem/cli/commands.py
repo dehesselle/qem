@@ -466,12 +466,17 @@ def cmd_sync(args: argparse.Namespace) -> int:
     mac = ssh_session(store)
     root = Path(args.path).resolve()
 
+    reported: set[str] = set()
+
     def once() -> None:
         result = mac.sync(root, delete=args.delete)
         if root == store.project:
             store.update(synced_dir=result.remote)
         removed = f", removed {result.deleted}" if result.deleted else ""
         print(f"Synced {root} -> {result.remote}: {result.uploaded} files sent{removed}", flush=True)
+        if new := [p for p in result.kept_local if p not in reported]:
+            err(f"Kept secrets on this computer: {', '.join(new)}. A `!` line in .nomacignore sends one.")
+            reported.update(new)
 
     once()
     if args.watch:
