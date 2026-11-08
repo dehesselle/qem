@@ -86,6 +86,21 @@ def test_key_order(monkeypatch):
     assert config.resolve_api_key() == "nmk_stored"
 
 
+def test_home_is_the_user_config_folder(monkeypatch, isolated_home, tmp_path):
+    assert config.home() == isolated_home  # QEM_HOME wins
+    asked = []
+
+    def user_config_dir(appname, appauthor=None):
+        asked.append((appname, appauthor))
+        return str(tmp_path / "config" / appname)
+
+    monkeypatch.setattr("platformdirs.user_config_dir", user_config_dir)
+    monkeypatch.delenv("QEM_HOME")
+    assert config.home() == tmp_path / "config" / "qem"
+    # no vendor folder on Windows (%LOCALAPPDATA%\qem, not ...\qem\qem)
+    assert asked == [("qem", False)]
+
+
 def test_device_login(api):
     api.on(
         "POST",

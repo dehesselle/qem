@@ -15,7 +15,7 @@ from qem import Nomac
 
 @pytest.fixture(autouse=True)
 def isolated_home(tmp_path, monkeypatch):
-    """Keep every test away from the real ~/.qem and API key."""
+    """Keep every test away from the real qem folder and API key."""
     home = tmp_path / "qem-home"
     monkeypatch.setenv("QEM_HOME", str(home))
     monkeypatch.setenv("NOMAC_API_KEY", "nmk_test")

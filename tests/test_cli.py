@@ -211,6 +211,33 @@ def test_ssh_config_takes_the_host_name(cli, api, monkeypatch, isolated_home, tm
     )
 
 
+def test_ssh_config_quotes_an_include_with_a_space(cli, api, monkeypatch, tmp_path):
+    # as in macOS's ~/Library/Application Support/qem
+    home = tmp_path / "Application Support" / "qem"
+    monkeypatch.setenv("QEM_HOME", str(home))
+    ProjectStore().save({"id": "ses_1", "identity": str(tmp_path / "id_test")})
+    monkeypatch.setattr("qem.ssh.ssh_env", dict)
+    includes = []
+    monkeypatch.setattr(
+        "qem.cli.commands.ensure_include",
+        lambda include, assume_yes: includes.append(include) or False,
+    )
+    api.on(
+        "POST",
+        "/mac/sessions/ses_1/access",
+        {
+            "session_id": "ses_1",
+            "generation": 1,
+            "ssh": {"username": "agent", "host_key": "ssh-ed25519 HOSTKEY"},
+            "gateway": "https://gw.nomac.app",
+            "token": "t" * 40,
+            "expires_at": "2026-10-30T13:00:00Z",
+        },
+    )
+    assert cli("ssh-config", "mac2") == 0
+    assert includes == [f'Include "{(home / "ssh_config.d" / "*.conf").as_posix()}"']
+
+
 def test_ssh_config_refuses_odd_host_names(cli):
     attach()
     assert cli("ssh-config", "-x") != 0  # argparse takes it for an option

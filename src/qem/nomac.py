@@ -91,7 +91,7 @@ class Nomac:
         """Start a Mac and (unless wait is None) block until it is ready.
 
         With `ssh` and no `identity`, an ed25519 key is made under
-        ~/.qem/keys, kept on the returned session and deleted by `stop()`.
+        `config.home()`/keys, kept on the returned session and deleted by `stop()`.
         Its name follows from the request key, so a retry after a NetworkError
         with the same `request_key` sends the same public key, as the
         idempotent API requires. A start while a Mac already runs raises

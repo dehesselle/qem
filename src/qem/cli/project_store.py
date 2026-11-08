@@ -53,7 +53,7 @@ class ProjectStore:
     def __init__(self, project: Path | None = None):
         self.project = Path(project or Path.cwd()).resolve()
         # One flat file per folder, named by a hash of its path:
-        # ~/.qem/projects/<24 hex digits>.json
+        # <qem home>/projects/<24 hex digits>.json
         self.path = sessions_root() / f"{_key(self.project)}.json"
 
     def __repr__(self) -> str:

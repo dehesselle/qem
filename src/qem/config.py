@@ -4,8 +4,9 @@
 
 """Where the API key and local files live.
 
-Everything is kept under ~/.qem (override with QEM_HOME), separate
-from the npm CLI's ~/.nomac whose formats are not documented.
+Everything is kept in one folder: the platform's user config folder for
+"qem" (override with QEM_HOME). It is separate from the npm CLI's ~/.nomac,
+whose formats are not documented.
 """
 
 from __future__ import annotations
@@ -14,11 +15,18 @@ import json
 import os
 from pathlib import Path
 
+import platformdirs
+
 DEFAULT_API_URL = "https://nomac.app"
 
 
 def home() -> Path:
-    return Path(os.environ.get("QEM_HOME") or Path.home() / ".qem")
+    """qem's folder: QEM_HOME, else ~/.config/qem (Linux), ~/Library/Application
+    Support/qem (macOS) or %LOCALAPPDATA%\\qem (Windows)."""
+    return Path(
+        os.environ.get("QEM_HOME")
+        or platformdirs.user_config_dir("qem", appauthor=False)
+    )
 
 
 def credentials_path() -> Path:

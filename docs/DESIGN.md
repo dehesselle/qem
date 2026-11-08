@@ -70,8 +70,9 @@ changed parts of a file, which matters little for source code.
 2. **The library keeps no hidden per-project state.** Callers pass session ids, keys and
    paths in. The map from project folder to session lives only in the CLI store, because
    a program using the library decides on its own what a "current" Mac is. The only files
-   the library writes are SSH material under `~/.qem`: generated keys, pinned
-   known_hosts, an empty ssh config, and the sockets ssh makes for shared connections.
+   the library writes are SSH material in qem's folder (`config.home()`): generated
+   keys, pinned known_hosts, an empty ssh config, and the sockets ssh makes for shared
+   connections.
    It also removes them again: `stop()` deletes the session's known_hosts and a key that
    qem generated, and a start the API refuses deletes the key made for it. A key the
    caller passed in is never deleted.
@@ -100,7 +101,7 @@ changed parts of a file, which matters little for source code.
    ([protocol.md](protocol.md)). Models read fields defensively, unwrap `{"session": …}`
    and `{"job": …}` when present, and keep `raw` so callers are not blocked by a missing
    field.
-8. **Separate from the npm CLI.** Everything lives under `~/.qem`, not `~/.nomac`,
+8. **Separate from the npm CLI.** Everything lives in qem's own folder, not `~/.nomac`,
    and the command is `qem`. The npm CLI's file formats are undocumented, and both
    tools may be installed side by side. The npm CLI is UNLICENSED: qem takes only
    protocol facts from it (listed in [protocol.md](protocol.md)), never its code,
@@ -110,10 +111,16 @@ changed parts of a file, which matters little for source code.
 
 ## Platform choices
 
+- qem's folder is the user config folder from platformdirs, not a dot-folder in the
+  home folder. Everything goes in that one folder, keys and sockets included, so
+  `QEM_HOME` moves all of it. On Windows it is the local, non-roaming AppData, so
+  private keys are not copied between machines. The macOS folder contains a space
+  (`Application Support`), so every path qem writes into an ssh option or config,
+  including the `Include` line of `ssh-config`, is quoted when it has one.
 - Paths inside ssh options use forward slashes on Windows. Windows OpenSSH accepts them,
   and MSYS ssh would otherwise lose the backslashes when it runs the ProxyCommand through
   `/bin/sh`.
-- An empty file in `~/.qem` stands in for `/dev/null` (`-F`,
+- An empty file in qem's folder stands in for `/dev/null` (`-F`,
   `GlobalKnownHostsFile`), because Windows OpenSSH does not understand `/dev/null`.
 - Windows OpenSSH stops writing its stdout in session 0 (ssh logins, services), so
   there qem uses Git's ssh instead, found only next to the `git` on `PATH`. The session
@@ -123,8 +130,8 @@ changed parts of a file, which matters little for source code.
   that server's shell, often PowerShell. For an ssh with `sh.exe` beside it,
   `prepare_ssh()` therefore sets `SHELL` to that `sh.exe` in ssh's environment.
 - ControlMaster multiplexing is used only off Windows, where OpenSSH supports it.
-  - Each Mac gets one socket in `~/.qem/mux`, named by a 16-digit hash of the session
-    id.
+  - Each Mac gets one socket in `mux/` in qem's folder, named by a 16-digit hash of the
+    session id.
   - When that path is too long for a Unix socket (macOS allows 104 bytes, and ssh adds
     17 for a temporary name), ssh runs without sharing.
   - The shared connection closes 60 s after its last use. It is kept short because an

@@ -6,8 +6,9 @@ environment variables qem uses.
 ## Credentials
 
 - `qem login` prints a URL and a code. Approve it in the browser, and the API key is
-  stored in `~/.qem/credentials.json`, readable only by you. The browser shows the
-  computer as `qem on <hostname>`. qem waits until the code is approved or expires.
+  stored in `credentials.json` in [qem's folder](#files-and-environment), readable only
+  by you. The browser shows the computer as `qem on <hostname>`. qem waits until the
+  code is approved or expires.
 - `qem login --with-token < key.txt` stores a key created at <https://nomac.app/keys>.
 - `qem logout` deletes the stored key.
 - The key is looked up in this order: the `api_key` argument (library only), then
@@ -90,8 +91,8 @@ qem ssh-config [NAME] [--yes]     # NAME defaults to nomac
   opens its own.
 - ssh sends a keepalive every 15 s and gives up after 8 missed answers, so the tunnel
   may stall for about two minutes before ssh ends.
-- `ssh-config` writes `~/.qem/ssh_config.d/<NAME>.conf`. It then offers to add
-  an `Include` line for that folder to the top of `~/.ssh/config` (`--yes` skips
+- `ssh-config` writes `ssh_config.d/<NAME>.conf` in qem's folder. It then offers to
+  add an `Include` line for that folder to the top of `~/.ssh/config` (`--yes` skips
   the question). After that, `ssh nomac`, `scp`, `rsync` and editors with remote SSH
   support reach the Mac. Give each Mac its own NAME to keep several. Run it again after
   `start` or `attach` points the folder at a new Mac, and after updating from a qem that
@@ -216,9 +217,10 @@ finally:
     mac.stop()
 ```
 
-- `Nomac.start(...)` makes a new ed25519 key under `~/.qem/keys` unless you pass
-  `identity=` (a private key path whose `.pub` sits next to it). Pass `ssh=False` for a
-  Mac reached only through the API. `wait=None` returns without waiting until it is ready.
+- `Nomac.start(...)` makes a new ed25519 key in `keys/` in qem's folder unless you
+  pass `identity=` (a private key path whose `.pub` sits next to it). Pass `ssh=False`
+  for a Mac reached only through the API. `wait=None` returns without waiting until it
+  is ready.
 - `MacSession.stop()` deletes the known_hosts entry and a key that qem generated. A
   key you passed in stays.
 - `Nomac.session(id, identity=...)` gives a handle to an existing Mac.
@@ -254,12 +256,12 @@ finally:
 | --- | --- |
 | `NOMAC_API_KEY` | API key; overrides the stored one. |
 | `NOMAC_API_URL` | API origin (default `https://nomac.app`). |
-| `QEM_HOME` | Where qem keeps its files (default `~/.qem`). |
+| `QEM_HOME` | qem's folder, where it keeps its files. Default: `~/.config/qem` on Linux (`$XDG_CONFIG_HOME/qem` when set), `~/Library/Application Support/qem` on macOS, `%LOCALAPPDATA%\qem` on Windows. |
 | `QEM_SSH` | The ssh to run, a path or a name on `PATH` (see [Which ssh qem runs](#which-ssh-qem-runs)). |
-| `~/.qem/credentials.json` | Stored API key. |
-| `~/.qem/keys/` | SSH keys made by `start`; deleted by `stop`. |
-| `~/.qem/known_hosts/<session>` | Pinned host key of each Mac. |
-| `~/.qem/projects/<hash>.json` | Which Mac belongs to which project folder (CLI). The hash is of the folder's full path. |
-| `~/.qem/mux/` | Sockets of shared ssh connections (not on Windows). |
-| `~/.qem/ssh_config.d/` | Host blocks written by `ssh-config`. |
+| `<QEM_HOME>/credentials.json` | Stored API key. |
+| `<QEM_HOME>/keys/` | SSH keys made by `start`; deleted by `stop`. |
+| `<QEM_HOME>/known_hosts/<session>` | Pinned host key of each Mac. |
+| `<QEM_HOME>/projects/<hash>.json` | Which Mac belongs to which project folder (CLI). The hash is of the folder's full path. |
+| `<QEM_HOME>/mux/` | Sockets of shared ssh connections (not on Windows). |
+| `<QEM_HOME>/ssh_config.d/` | Host blocks written by `ssh-config`. |
 | `QEM_TUNNEL_*` | Internal: hands the access token from qem to its own ProxyCommand. |

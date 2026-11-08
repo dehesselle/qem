@@ -405,7 +405,8 @@ def cmd_ssh_config(args: argparse.Namespace) -> int:
     config.write_private(
         directory / f"{name}.conf", ssh_mod.ssh_config_block(name, mac.id, mac.identity)
     )
-    include = f"Include {(directory / '*.conf').as_posix()}"
+    # macOS's default folder has a space in it ("Application Support").
+    include = f"Include {ssh_mod._value((directory / '*.conf').as_posix())}"
     if ensure_include(include, args.yes):
         print(f"`ssh {name}` now reaches {mac.id}.")
     else:
