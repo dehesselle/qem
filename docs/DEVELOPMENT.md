@@ -48,7 +48,7 @@ uvx reuse lint                           # every file has copyright and license 
   multiplexing and forwards. It also runs the real `ssh-keygen` when there is one.
 - `test_ssh_choice.py` covers which ssh qem runs (`QEM_SSH`, Git's ssh without a desktop
   on Windows), on a fake Windows layout.
-- `test_api.py` covers the device login, including RFC 8628's `slow_down` and the
+- `test_device_login.py` covers the device login, including RFC 8628's `slow_down` and the
   login's expiry.
 
 ## CI and releases

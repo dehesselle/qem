@@ -14,11 +14,11 @@ from typing import Any, Self
 
 import httpx
 
-from .api import Transport
 from .errors import ApiError
+from .mac_session import MacSession, new_request_key
 from .models import SessionInfo
-from .session import MacSession, new_request_key
 from .ssh import generate_identity, keys_dir, remove_identity
+from .transport import Transport
 
 
 class Nomac:

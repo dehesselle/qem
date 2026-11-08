@@ -11,8 +11,8 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .api import Transport
 from .errors import ApiError, LoginFailed, WaitTimeout
+from .transport import Transport
 
 DEFAULT_INTERVAL = 5  # RFC 8628's default when the server names none
 DEFAULT_EXPIRES_IN = 600  # used only if the server names no lifetime

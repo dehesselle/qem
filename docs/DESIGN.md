@@ -8,18 +8,18 @@ qem has two layers.
 
 - **Library** (`qem`, everything outside `qem.cli`): talks to the NoMac REST API,
   builds ssh command lines, moves files over ssh, and runs the SSH tunnel.
-  - `api.Transport` is the only place that does HTTP. It adds the Bearer key, the
+  - `transport.Transport` is the only place that does HTTP. It adds the Bearer key, the
     `Idempotency-Key` header and the `wait` long-poll parameter, and turns error envelopes
     into `errors.ApiError` subclasses.
-  - `client.Nomac` covers the account: `me`, `credits`, `sessions`, `start`, `session`.
-  - `session.MacSession` is one Mac: lifecycle, jobs, `prepare_ssh`/`ssh`, `sync`/`pull`,
+  - `nomac.Nomac` covers the account: `me`, `credits`, `sessions`, `start`, `session`.
+  - `mac_session.MacSession` is one Mac: lifecycle, jobs, `prepare_ssh`/`ssh`, `sync`/`pull`,
     and `password`/`desktop_tunnel`.
   - `models` holds typed, read-only views of responses. Each keeps the full response in
     `raw`.
   - `ssh`, `tunnel`, `upload` (sync), `transfer` (Mac paths, pull) and `vnc` (desktop) are
     free functions that `MacSession` puts together.
 - **CLI** (`qem.cli`): argparse in `cli/__init__.py`, handlers in `cli/commands.py`,
-  and the per-folder session store in `cli/store.py`.
+  and the per-folder session store in `cli/project_store.py`.
 
 SSH never reaches the Mac directly. ssh runs `python -m qem proxy <id>` as its
 ProxyCommand, and that process carries the SSH bytes over a WebSocket to NoMac's gateway

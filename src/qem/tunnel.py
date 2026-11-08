@@ -25,9 +25,9 @@ from websockets.exceptions import (
 )
 from websockets.sync.client import ClientConnection, connect
 
-from .api import _user_agent
 from .errors import TunnelError
 from .models import Access
+from .transport import _user_agent
 
 MAX_FRAME = 1024 * 1024
 READ_SIZE = 64 * 1024

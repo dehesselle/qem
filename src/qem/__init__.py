@@ -10,7 +10,6 @@ with Nomac() as nm, nm.start(max_duration=1800, max_cost=1) as mac:
     print(mac.exec(["sw_vers"]).stdout)
 """
 
-from .client import Nomac
 from .errors import (
     ApiError,
     LoginFailed,
@@ -26,8 +25,9 @@ from .errors import (
     Unauthorized,
     WaitTimeout,
 )
+from .mac_session import MacSession
 from .models import Access, Job, Login, OutputChunk, SessionInfo
-from .session import MacSession
+from .nomac import Nomac
 from .transfer import PullResult
 from .upload import SyncResult
 from .version_info import version

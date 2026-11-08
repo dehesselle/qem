@@ -11,7 +11,7 @@ import pytest
 from qem import Nomac, NomacError
 from qem.cli import EXIT_STILL_RUNNING, main
 from qem.cli.commands import copy_to_clipboard, parse_duration, parse_forward
-from qem.cli.store import ProjectStore, find_identity, sessions_root
+from qem.cli.project_store import ProjectStore, find_identity, sessions_root
 
 
 @pytest.fixture
@@ -151,7 +151,7 @@ def test_payment_required_shows_buy_url(cli, api, capsys):
 
 def test_start_refuses_while_another_mac_runs(cli, api, monkeypatch, capsys):
     monkeypatch.setattr(
-        "qem.client.generate_identity",
+        "qem.nomac.generate_identity",
         lambda path: (
             (
                 path.parent.mkdir(parents=True),
@@ -273,7 +273,7 @@ def test_ssh_forward(cli, monkeypatch, capsys):
     ProjectStore().save({"id": "ses_1", "identity": "/k/id"})
     calls = []
     monkeypatch.setattr(
-        "qem.session.MacSession.ssh",
+        "qem.mac_session.MacSession.ssh",
         lambda self, command=None, *, forward=None: (
             calls.append((command, forward)) or subprocess.CompletedProcess([], 0)
         ),
@@ -413,7 +413,7 @@ def desktop(cli, api, monkeypatch):
         tunnels.append(FakeTunnel(port or 5999, interrupted))
         return tunnels[-1]
 
-    monkeypatch.setattr("qem.session.MacSession.desktop_tunnel", tunnel)
+    monkeypatch.setattr("qem.mac_session.MacSession.desktop_tunnel", tunnel)
     monkeypatch.setattr(
         "qem.cli.commands.subprocess.run",
         lambda argv, **kw: (
@@ -444,7 +444,7 @@ def test_desktop_no_viewer_holds_until_ctrl_c(cli, desktop, capsys):
 
 def test_desktop_reports_a_closed_tunnel(cli, desktop, capsys, monkeypatch):
     monkeypatch.setattr(
-        "qem.session.MacSession.desktop_tunnel",
+        "qem.mac_session.MacSession.desktop_tunnel",
         lambda self, port=None: FakeTunnel(5999, lambda: 255),
     )
     assert cli("desktop", "--no-viewer") == 1

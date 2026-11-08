@@ -18,9 +18,9 @@ from typing import Any, Self
 
 from . import ssh as ssh_mod
 from . import transfer, upload, vnc
-from .api import Transport
 from .errors import NomacError, TransferError, WaitTimeout
 from .models import STARTING_STATES, Access, Job, Login, OutputChunk, SessionInfo
+from .transport import Transport
 from .tunnel import tunnel_env
 
 MAX_WAIT = 50  # the API caps long polls at 50 s

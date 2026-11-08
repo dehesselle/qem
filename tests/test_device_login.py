@@ -6,8 +6,7 @@ import httpx
 import pytest
 
 from qem import config
-from qem.api import Transport
-from qem.auth import DeviceCode, DeviceLogin
+from qem.device_login import DeviceCode, DeviceLogin
 from qem.errors import (
     ApiError,
     LoginFailed,
@@ -18,6 +17,7 @@ from qem.errors import (
     PreconditionFailed,
     WaitTimeout,
 )
+from qem.transport import Transport
 
 
 def transport(api, **kwargs):

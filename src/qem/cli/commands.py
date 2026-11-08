@@ -21,14 +21,14 @@ from typing import Any
 
 from .. import config, upload, vnc
 from .. import ssh as ssh_mod
-from ..api import Transport
-from ..auth import DeviceLogin
-from ..client import Nomac
+from ..device_login import DeviceLogin
 from ..errors import ApiError, NetworkError, NomacError, PaymentRequired, TransferError
+from ..mac_session import MacSession, new_request_key
 from ..models import Job, SessionInfo
-from ..session import MacSession, new_request_key
+from ..nomac import Nomac
+from ..transport import Transport
 from . import EXIT_STILL_RUNNING
-from .store import ProjectStore, find_identity
+from .project_store import ProjectStore, find_identity
 
 
 def err(*parts: object) -> None:

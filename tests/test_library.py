@@ -30,7 +30,7 @@ def fake_keygen(monkeypatch):
         Path(f"{path}.pub").write_text("ssh-ed25519 AAAA qem\n")
         return path
 
-    monkeypatch.setattr("qem.client.generate_identity", keygen)
+    monkeypatch.setattr("qem.nomac.generate_identity", keygen)
 
 
 def test_start_exec_stop(api, make_client, fake_keygen, capsys):
