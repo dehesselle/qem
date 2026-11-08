@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """Python library and CLI for NoMac cloud Macs (https://nomac.app).
 
     from qem import Nomac

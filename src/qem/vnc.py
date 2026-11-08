@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """The Mac's desktop over VNC.
 
 The Mac runs macOS Screen Sharing on 127.0.0.1:5900, which only ssh reaches.

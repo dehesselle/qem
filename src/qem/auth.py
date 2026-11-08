@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """Browser-approved device login: nothing secret is typed in the terminal."""
 
 from __future__ import annotations

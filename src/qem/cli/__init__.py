@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """The `qem` command: argparse, the per-project session store and output.
 
 Everything else is a thin call into the library.

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """Where the API key and local files live.
 
 Everything is kept under ~/.qem (override with QEM_HOME), separate

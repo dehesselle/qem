@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """SSH over a WebSocket to the NoMac gateway.
 
 The gateway endpoint is wss://<gateway>/api/v1/mac/sessions/<id>/ssh with the

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """Typed views of API responses.
 
 Only fields the library acts on are lifted out; `raw` keeps the whole

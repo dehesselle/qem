@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """Exceptions raised by the library. The CLI maps them to messages and exit codes."""
 
 from __future__ import annotations

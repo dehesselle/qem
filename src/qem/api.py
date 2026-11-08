@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """Thin HTTP layer over https://nomac.app/api/v1."""
 
 from __future__ import annotations

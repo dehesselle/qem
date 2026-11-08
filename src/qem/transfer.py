@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """Where projects live on the Mac, and pull (tar over the session's ssh).
 
 `sync` is in upload.py. Neither direction uses rsync; see docs/DESIGN.md.

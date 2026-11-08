@@ -1,10 +1,14 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 [project]
 name = "qem"
 dynamic = ["version"]
 description = "Python library and CLI for NoMac cloud Macs (nomac.app)"
 readme = "README.md"
 license = "0BSD"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "LICENSES/*"]
 authors = [
     { name = "René de Hesselle", email = "dehesselle@web.de" }
 ]

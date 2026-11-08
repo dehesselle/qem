@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """ssh command lines for a session.
 
 ssh never resolves the Mac's name: ProxyCommand runs `python -m qem

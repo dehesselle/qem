@@ -13,11 +13,16 @@ The version comes from git tags through hatch-vcs and is written to the generate
 `src/qem/version.py`. Tag releases as `vX.Y.Z`. After a new commit or tag, run
 `uv sync --reinstall-package qem` to refresh that file.
 
+The project is REUSE compliant. A new file starts with the SPDX header that
+`reuse annotate --copyright "René de Hesselle <dehesselle@web.de>" --license 0BSD`
+writes. A file that can't carry a comment goes in `REUSE.toml` instead.
+
 ## Tests
 
 ```sh
 uv run pytest
 uvx ruff check src tests    # ruff's default rules; the generated version.py is excluded
+uvx reuse lint              # every file has copyright and license information
 ```
 
 - None of the tests touch the real NoMac service. `QEM_HOME` points at a temporary

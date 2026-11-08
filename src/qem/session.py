@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """One cloud Mac: lifecycle, commands, ssh and file transfer."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 René de Hesselle <dehesselle@web.de>
+#
+# SPDX-License-Identifier: 0BSD
+
 """Project upload (`sync`): compare with the Mac, then send changed files as tar over ssh.
 
 One ssh connection per sync runs `remote_script` on the Mac with macOS's own
