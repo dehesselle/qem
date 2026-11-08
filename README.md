@@ -46,6 +46,11 @@ A running Mac is billed per minute, so always pass `--max-cost` and `--max-durat
   where each fact comes from, and which parts are not yet verified against the live
   service.
 
+## AI disclosure
+
+Substantial parts of this code were generated with Opus 5.x. Generated code was
+tested, but not every line was reviewed in detail.
+
 ## License
 
 [0BSD](LICENSE). qem is not affiliated with NoMac.
